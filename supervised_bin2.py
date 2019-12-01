@@ -10,7 +10,7 @@ class batch_evaluation:
   Method
   ------
 
-  \t (1) self.fit( y, X)
+  \t self.fit( y, X)
   \t **Return:** 
   \t - self.bin_df : (dataframe), table of hyper parameters and goodness-of-fit 
   \t   or binning indicators from each iteration. There are 9 columns, 
@@ -20,11 +20,11 @@ class batch_evaluation:
   \t   'round', 'variable', 'min', 'max', 'Bin', 'Non_events', 'Events', 
   \t   'pct_nonevents', 'pct_events', 'WOE', and 'IV'
 
-  \t (2) self.plot(column='round', value=1, adjusted=False)
+  \t self.plot(column='round', value=1, adjusted=False)
   \t **Return**
   \t - self.adj_bin_df : (dataframe)
 
-  \t (3) self.filter_out()
+  \t self.filter_out()
   \t **Return**
   \t - self.adj_bin_df : (dataframe)
   '''
@@ -38,28 +38,25 @@ class batch_evaluation:
 
     **woe_binning**
     \t n_step : (int), number of steps (percentile) given defined range (min, max)
-    \t method : (str,list) method to use for determining WOEs 
-       (default=['iv','entropy','gini','chi','mono'])
+    \t method : (str,list) method to use for determining WOEs (default=['iv','entropy','gini','chi','mono'])
     \t - string method name
     \t - list of method names e.g. ['iv', 'gini']
     \t min_pct : (float), minimum percentage of sample in each BIN
     \t chi_alpha : (float), significant level of Chi-sqaure
     \t chi_intv : (int), starting sub-intervals of Chi-merge
     \t p_value : (float), significant level of Student's T-Test
-    \t ttest_intv : (int), starting sub-intervals of 
-       "Monotonic-Optimal-Binning" technique
+    \t ttest_intv : (int), starting sub-intervals of "Monotonic-Optimal-Binning" technique
     \t min_obs : (float), minimum percentage of sample in each BIN (used in 'mono')
-    \t min_event : (float), minimum percentage of event compared to its 
-       total in each BIN
+    \t min_event : (float), minimum percentage of event compared to its total in each BIN
 
     **Selection criteria**
     \t iv_imp : (float), IV importance weight (max=1, default=0.5)
     \t min_iv : (float), minimum acceptable IV (default=0.1)
     \t min_corr : (float), minimum acceptable absolute correlation (default=0.5)
     \t max_tol : (float), maximum tolerance of difference between model and 
-       log(event/non-event) intercepts (default=0.01)
+    \t log(event/non-event) intercepts (default=0.01)
     \t bin_df : (dataframe), list of hyper parameters and goodness-of-fit or 
-       binning indicators from each iteration (default=None)
+    \t binning indicators from each iteration (default=None)
     \t res_df : (dataframe), list of binning outputs (default=None)
     '''
     # keyword arguments (excluding 'method')
@@ -77,8 +74,7 @@ class batch_evaluation:
     self.res_df, self.bin_df = res_df, bin_df
     
     # list of columns 
-    self.bin_cols=['round', 'method', 'variable', 'model_bin', 'IV', 
-                   'correlation', 'intercept']
+    self.bin_cols=['round', 'method', 'variable', 'model_bin', 'IV', 'correlation', 'intercept']
     self.res_cols=['round', 'variable', 'min', 'max', 'Bin', 'Non_events',
                    'Events', 'pct_nonevents', 'pct_events', 'WOE', 'IV']
     
@@ -86,10 +82,8 @@ class batch_evaluation:
     self.prog_lb = '** Variable: {var} (method={m}) **'
 
     # define method
-    if isinstance(method,str):
-      self.method = list([method])
-    elif isinstance(method,list):
-      self.method = method
+    if isinstance(method,str): self.method = list([method])
+    elif isinstance(method,list): self.method = method
     else: self.method = ['iv','entropy','gini','chi','mono']
 
   def fit(self, y, X):
