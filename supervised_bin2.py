@@ -1,6 +1,7 @@
 import pandas as pd, numpy as np, math, time
 import scipy.stats as st, ipywidgets as widgets
 from IPython.display import HTML, display
+from scorecard.supervised_bin import woe_binning
 
 #@markdown **_class_** : batch_evaluation
 
