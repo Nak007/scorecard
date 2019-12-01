@@ -16,6 +16,7 @@ class woe_binning:
   \t - Fit the model according to the given initial inputs.
   \t **Return** 
   \t - array of bin edges
+  
   \t (2) self._woe_btw_bins(y, X, r_min, r_max, plot=False, X_name=None)
   \t - find series of cut-offs according to the given initial inputs and range  
   \t **Return** 
@@ -562,3 +563,183 @@ class woe_binning:
     {a : dist. of non-events , b : dist. of events}
     '''
     return (a-b)*np.log(a/b)
+
+#@markdown **_class_** : plot_woe
+
+class plot_woe:
+
+  '''
+  Method
+  ------
+
+  \t self.fit(woe_df, var_name=None, rho=999, fname=None)
+  \t **Return**
+  \t - WOE and distribution plots with respect to pre-determined bins
+  '''
+  
+  def __init__(self, c_pos='#fff200', c_neg='#aaa69d',
+               lb_event='event', lb_n_event='non-event'):
+    
+    '''
+    Parameters
+    ----------
+
+    \t c_pos, c_neg : (hex) color for event and non-event, respectively
+    \t lb_event, lb_n_event : (str) label for event and non-event, respectively
+    '''
+    # woe plots
+    bar_kwargs = dict(alpha=0.8, width=0.7, align='center', hatch='////', 
+                      edgecolor='#4b4b4b', lw=1)
+    self.pos_kwargs = dict(color=c_pos, label=lb_n_event+'>'+lb_event)
+    self.pos_kwargs.update(bar_kwargs)
+    self.neg_kwargs = dict(color=c_neg, label=lb_n_event+'<'+lb_event)
+    self.neg_kwargs.update(bar_kwargs)
+    self.lg_kwargs = dict(loc='best', fontsize=10, framealpha=0, edgecolor='none')
+    txt_kwargs = dict(ha='center', rotation=0, color='#4b4b4b',fontsize=10)
+    self.p_woe_kwargs = dict(va='top'); self.p_woe_kwargs.update(txt_kwargs)
+    self.n_woe_kwargs = dict(va='bottom'); self.n_woe_kwargs.update(txt_kwargs)
+
+    # distribution plot
+    self.n_event_kwargs = dict(color=c_pos, label=lb_n_event)
+    self.n_event_kwargs.update(bar_kwargs)
+    self.event_kwargs = dict(color=c_neg, label=lb_event)
+    self.event_kwargs.update(bar_kwargs)
+
+  def plot(self, woe_df, var_name=None, rho=999, fname=None):
+
+    '''
+    Parameters
+    ----------
+
+    \t woe_df : (dataframe) must be comprised of
+    \t - 'min', 'max': (float) bin range (min<=x<max)
+    \t - 'bin': (int) bin number 
+    \t - 'pct_nonevents', 'pct_events': (float) percentage of non-target and target
+    \t - 'woe': (float), weight of evidence
+    \t - 'iv': (float), information value
+    \t var_name : (str) variable name (default=None, ''undefined')
+    \t rho : (float), Pearson correlation coefficient (default=999)
+    \t fname : \str or PathLike or file-like object
+    '''
+    # data preparation
+    self.df = woe_df.rename(str.lower,axis=1).copy()
+    if var_name is not None: self.var_name = var_name
+    else: self.var_name = 'undefined'
+    self.rho, self.bin_rho = rho, self.__bin_corr()
+    self.iv = self.df['iv'].sum()
+    
+    # create plots 
+    hor_f = max(len(self.df)*0.6,5)*2
+    fig, axes = plt.subplots(1,2,figsize=(hor_f,4.5))
+    self.__ticklabels()
+    # plot WOE and distribution 
+    self.__woe_plot(axes[0])
+    self.__dist_plot(axes[1])
+    if fname is not None: plt.savefig(fname)
+    plt.tight_layout()
+    plt.show()
+  
+  def __bin_corr(self):
+    
+    ''' 
+    Bin Correlation
+    (Pearson correlation coefficient)
+    '''
+    cond = (self.df['bin'] > 0)
+    min_np = self.df.loc[cond,'min'].values
+    max_np = self.df.loc[cond,'max'].values
+    woe_np = self.df.loc[cond,'woe'].values
+    rho, _ = pearsonr((max_np-min_np)/2, woe_np)
+    return rho
+    
+  def __iv_predict(self):
+    
+    '''
+    IV predictiveness
+    '''
+    if self.iv < 0.02: return 'Not useful for prediction'
+    elif self.iv >= 0.02 and self.iv < 0.1: return 'Weak predictive Power'
+    elif self.iv >= 0.1 and self.iv < 0.3: return 'Medium predictive Power'
+    elif self.iv >= 0.3: return 'Strong predictive Power'
+    
+  def __ticklabels(self):
+    
+    '''
+    Set Xticklabels format
+    '''
+    # Set X tick label format (number)
+    self.xticks = np.arange(len(self.df))
+    ticklabels = np.empty(len(self.df), dtype='|U100')
+
+    # Create tick label array
+    a = self.df['min'].values
+    a = ['\n'.join(('missing','(nan)'))] + a.tolist()[1:]
+    for n, b in enumerate(a):
+      ticklabels[n] = b
+      if n > 0:
+        if b < 1000: ticklabels[n] = '{:.1f}'.format(b)
+        else: ticklabels[n] = '{:.1e}'.format(b)
+    self.xticklabels = ticklabels    
+
+  def __woe_plot(self, axis):
+    
+    iv = 'IV = %.4f (%s)' % (self.iv, self.__iv_predict())
+    label = 'Variable: %s \n ' % self.var_name
+
+    # extract positive and negative woes  
+    Pos_Y = [max(n,0) for n in self.df['woe'].values]
+    Neg_Y = [min(n,0) for n in self.df['woe'].values]
+
+    # plot woes
+    axis.bar(self.xticks, Pos_Y, **self.pos_kwargs)
+    axis.bar(self.xticks, Neg_Y, **self.neg_kwargs)
+    
+    # woe values (text)
+    for n, s in enumerate(Pos_Y):
+      if s>0: axis.text(n, -0.05, '%0.2f' % s, **self.p_woe_kwargs)
+    for n, s in enumerate(Neg_Y):
+      if s<0: axis.text(n, 0.05, '%0.2f' % s, **self.n_woe_kwargs)
+
+    axis.set_facecolor('white')
+    axis.set_ylabel('Weight of Evidence (WOE)')
+    axis.set_xlabel(r'$BIN_{n} = BIN_{n} \leq X < BIN_{n+1}$')
+    axis.set_xticks(self.xticks)
+    axis.set_xticklabels(self.xticklabels, fontsize=10)
+    axis.set_title(label + iv)
+    ylim = axis.get_ylim()
+    axis.set_ylim(ylim[0]-0.2,ylim[1])
+    axis.legend(**self.lg_kwargs)
+    axis.grid(False)
+
+    bbox = dict(boxstyle='round', facecolor='white',edgecolor=None, alpha=0)
+    kwargs = dict(transform=axis.transAxes, fontsize=12, va='center', bbox=bbox)
+    s = r'$\rho_{data}$ = %.2f $\rho_{\Delta bin}$ = %.2f'
+    axis.text(0.05, 0.05, s % (self.rho, self.bin_rho), **kwargs)
+    
+  def __dist_plot(self, axis):
+
+    label = 'Variable: %s \n samples (%%) in each BIN' % self.var_name
+
+    ne_y = self.df['pct_nonevents'].values*100
+    ev_y = self.df['pct_events'].values*100
+
+    # plot distribution
+    axis.bar(self.xticks, ne_y, **self.n_event_kwargs)
+    axis.bar(self.xticks, -ev_y, **self.event_kwargs)
+
+    # distribution percentage with respect to group (text)
+    for n, s in enumerate(ne_y):
+      if s>0: axis.text(n, s+1, '%d%%' % s, **self.n_woe_kwargs)
+    for n, s in enumerate(ev_y):
+      if s>0: axis.text(n, -s-1, '%d%%' % s, **self.p_woe_kwargs)
+
+    axis.set_facecolor('white')
+    axis.set_ylabel('Percentage (%)')
+    axis.set_xlabel(r'$BIN_{n} = BIN_{n} \leq X < BIN_{n+1}$')
+    axis.set_xticks(self.xticks)
+    axis.set_xticklabels(self.xticklabels, fontsize=10)
+    axis.set_title(label)
+    axis.legend(**self.lg_kwargs)
+    axis.grid(False)
+    ylim = axis.get_ylim()
+    axis.set_ylim(ylim[0]-5,ylim[1]+5)
