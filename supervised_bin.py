@@ -76,8 +76,7 @@ class batch_evaluation:
     self.res_df, self.bin_df = res_df, bin_df
     
     # list of columns 
-    self.bin_cols=['round', 'method', 'variable', 'model_bin', 'IV', 
-                   'correlation', 'intercept']
+    self.bin_cols=['round', 'method', 'variable', 'model_bin', 'IV', 'correlation', 'intercept']
     self.res_cols=['round', 'variable', 'min', 'max', 'Bin', 'Non_events',
                    'Events', 'pct_nonevents', 'pct_events', 'WOE', 'IV']
     
@@ -85,10 +84,8 @@ class batch_evaluation:
     self.prog_lb = '** Variable: {var} (method={m}) **'
 
     # define method
-    if isinstance(method,str):
-      self.method = list([method])
-    elif isinstance(method,list):
-      self.method = method
+    if isinstance(method,str): self.method = list([method])
+    elif isinstance(method,list): self.method = method
     else: self.method = ['iv','entropy','gini','chi','mono']
 
   def fit(self, y, X):
@@ -120,7 +117,7 @@ class batch_evaluation:
         
         # initial values
         self.kwargs['method'] = n_method
-        bin_model = woe_binning(**self.kwargs)
+        #bin_model = woe_binning(**self.kwargs)
       
         # determine coarse binning
         bin_model.fit(y, X[var].values)
