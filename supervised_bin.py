@@ -743,3 +743,167 @@ class plot_woe:
     axis.grid(False)
     ylim = axis.get_ylim()
     axis.set_ylim(ylim[0]-5,ylim[1]+5)
+    
+#@markdown **_class_** : evaluate_bins
+
+class evaluate_bins:
+  
+  '''
+  Method
+  ------
+
+  \t self.plot(var_name=None, fname=None)
+  \t - plot WOEs and distribuition of events and non-events
+  '''
+  def __init__(self, y, X, bin_edges):
+    
+    '''
+    Parameters
+    ----------
+
+    \t y : array-like or list
+    \t X : array-like or list
+    \t bin_edges : array_like
+
+    Return 
+    ------
+
+    \t self.woe_df : (dataframe), WOE summary
+    \t self.iv : (float), total information value
+    \t self.rho : (float), Pearson correlation coefficient (exluding numpy.nan)
+    \t self.modl_incpt : (float) model intercept
+    \t self.ln_incpt : (float), log of quotient of event over non-event
+    '''
+    # convert bin_edges to array
+    bin_edges = np.array(bin_edges)
+    
+    # Array without NaN
+    nonan_X, nonan_Y = X[~np.isnan(X)], y[~np.isnan(X)]
+    nan_Y = y[np.isnan(X)]
+   
+    # Return the indices of the bins to which each value in input 
+    # array belongs.Range ==> bins[i-1] <= x < bins[i] when right==False, 
+    # the interval does not include the right edge. However, (1) is added
+    # to the last BIN in order to include maximum.
+    # Index always starts from 1. 
+    index_np = np.digitize(nonan_X, bin_edges, right=False)
+    
+    event_np, pct_np, lb_np = [None,None], [None,None], ['Non_events','Events']
+    for n in range(2):
+      # Determine count in each group
+      group_np, cnt_np = np.unique(index_np[nonan_Y==n],return_counts=True)
+      missing = np.array([0,np.where(nan_Y==n,1,0).sum()]).reshape(1,2)
+      # Merge group number and count arrays
+      cnt_np = np.concatenate((group_np.reshape(-1,1),cnt_np.reshape(-1,1)),axis=1)
+      # concatenate with missing
+      cnt_np = np.concatenate((missing,cnt_np),axis=0)
+      event_np[n] = pd.DataFrame(data=cnt_np, columns=['Bin', lb_np[n]])
+
+    # Create result table
+    df = pd.merge(event_np[0], event_np[1], on=['Bin'], how='left').fillna(0)
+    df['pct_nonevents'] = df['Non_events'].divide(df['Non_events'].sum())
+    df['pct_events'] = df['Events'].divide(df['Events'].sum())
+    limit = [0.5/float(df[n].sum()) for n in lb_np]
+    a, b = df['pct_nonevents'].values, df['pct_events'].values
+    woe_np = [max(m, limit[0])/max(n,limit[1]) for m, n in zip(a,b)]
+    df['WOE'] = np.log(woe_np)
+    
+    # Chage Inf or -Inf to nan
+    df.loc[(df.WOE==float('Inf'))|(df.WOE==-float('Inf')),'WOE'] = np.nan
+    df['IV'] = (df.pct_nonevents - df.pct_events) * df.WOE
+
+    # Range (Min <= X < Max)
+    mm_df = self.__minmax_df(bin_edges)
+    
+    # Weight of Evidence dataframe
+    self.woe_df = mm_df.join(df.fillna(0)).reset_index(drop=True)
+    
+    # Information Value
+    self.iv = self.woe_df.IV.sum()
+    
+    # Spearman rank-order correlation coefficient (exclude "missing")
+    self.__corr(index_np, self.woe_df)
+    
+    # Check binning soundness (intercpet)
+    self.modl_incpt, self.ln_incpt = self.__check_binning(y, X, self.woe_df)
+  
+  def __minmax_df(self, bin_edges):
+    
+    min_np = bin_edges[:-1].reshape(-1,1)
+    max_np = bin_edges[1:].reshape(-1,1)
+    missing, missing[:] = np.empty((1,2)), np.nan
+    min_max = np.concatenate((min_np, max_np),axis=1)
+    min_max = np.concatenate((missing,min_max),axis=0)
+    return pd.DataFrame(data=min_max, columns=['min','max'])
+  
+  def __corr(self, index_np, woe_df):
+    
+    '''
+    Spearman rank-order correlation coefficient (exclude "missing")
+    '''
+    woe_df = woe_df.loc[(woe_df.Bin > 0),['Bin','WOE']]
+    index_df = pd.DataFrame(data=index_np, columns=['Bin'])
+    b =  pd.merge(index_df, woe_df, on=['Bin'], how='left').fillna(0)
+
+    # The two-sided p-value for a hypothesis test whose null 
+    # hypothesis is that two sets of data are uncorrelated
+    n_woe = len(np.unique(b.WOE.values))
+    if n_woe > 1: self.rho, _ = pearsonr(index_np, b.WOE.values)
+    else: self.rho = np.nan
+    
+  def __check_binning(self, y, X, woe_df):
+  
+    '''
+    If the slope is not 1 or the intercept is not ln(event/non-event) 
+    then this binning algorithm is not good
+    NOTE: Due to regularization (l2), this logistic regression will 
+    never return coefficient as normal logistic does
+    '''
+    X = self.__assign_woe(X, woe_df)
+    y = np.array(y)
+    event = np.count_nonzero(y)
+    non_event = max(y.size-event,1)
+    if event ==0: ln_intercpt = 0
+    else: ln_intercpt = np.log(event/non_event)
+    from sklearn.linear_model import LogisticRegression as LR
+    model = LR(solver='lbfgs',fit_intercept=True).fit(X, y)
+    return float(model.intercept_), ln_intercpt
+  
+  def __assign_woe(self, X, woe_df):
+  
+    ''' 
+    find minimum value (exclude nan) from summary table. 
+    Subtract such number by one and then assign to missing value
+    '''
+    min_value = woe_df.loc[(woe_df['min'].notna()),'min'].min() - 1
+    X = np.array(pd.DataFrame(X).fillna(min_value).values).tolist()
+  
+    # Create array of bin edges
+    bin_range = woe_df[['min','max']].fillna(min_value).values
+    bin_edges = np.sort(np.unique(bin_range.tolist()))
+
+    # Assign group index to value array and convert to dataframe
+    index_np = np.digitize(X, bin_edges, right=False)
+    index_df = pd.DataFrame(data=index_np, columns=['Bin'])
+
+    # Extract Bin and WOE from summary table and reassgin bin number 
+    # starting from 1
+    woe_df = woe_df[['Bin','WOE']].copy()
+    woe_df['Bin'] = woe_df['Bin'] + 1
+    woe_np = pd.merge(index_df, woe_df, on=['Bin'], 
+                      how='left').fillna(0).drop(columns=['Bin']).values
+    return woe_np
+  
+  def plot(self, var_name=None, fname=None):
+
+    '''
+    Parameters
+    ----------
+
+    \t var_name : (str), variable name (default=None)
+    \t fname : str or PathLike or file-like object
+    '''
+    if len(self.woe_df) <= 1:
+      print('self.woe_df does not exist')
+      return None
+    else: plot_woe().plot(self.woe_df,var_name, rho=self.rho, fname=fname)
