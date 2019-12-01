@@ -1,8 +1,7 @@
 import pandas as pd, numpy as np, math, time
 import matplotlib.pylab as plt
 from scipy.stats import spearmanr, pearsonr, sem, t, chi2
-import scipy.stats as st, ipywidgets as widgets
-from IPython.display import HTML, display
+import scipy.stats as st
 
 #@markdown **_class_** : batch_evaluation
 
@@ -117,7 +116,7 @@ class batch_evaluation:
         
         # initial values
         self.kwargs['method'] = n_method
-        #bin_model = woe_binning(**self.kwargs)
+        bin_model = woe_binning(**self.kwargs)
       
         # determine coarse binning
         bin_model.fit(y, X[var].values)
@@ -262,6 +261,7 @@ class batch_evaluation:
       columns = ['X' + str(n+1) for n in range(n_col)]
       X = pd.DataFrame(data=np.array(X),columns=columns) 
     return X, np.array(X.columns).tolist()
+  
 #@markdown **_class_** : woe_binning
 
 class woe_binning:
