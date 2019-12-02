@@ -12,7 +12,7 @@ class batch_evaluation:
   Method
   ------
 
-  \t self.fit( y, X)
+  \t (1) self.fit( y, X)
   \t **Return:** 
   \t - self.bin_df : (dataframe), table of hyper parameters and goodness-of-fit 
   \t   or binning indicators from each iteration. There are 9 columns, 
@@ -22,11 +22,11 @@ class batch_evaluation:
   \t   'round', 'variable', 'min', 'max', 'Bin', 'Non_events', 'Events', 
   \t   'pct_nonevents', 'pct_events', 'WOE', and 'IV'
 
-  \t self.plot(column='round', value=1, adjusted=False)
+  \t (2) self.plot(column='round', value=1, adjusted=False)
   \t **Return**
   \t - self.adj_bin_df : (dataframe)
 
-  \t self.filter_out()
+  \t (3) self.filter_out()
   \t **Return**
   \t - self.adj_bin_df : (dataframe)
   '''
