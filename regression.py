@@ -681,3 +681,257 @@ class evaluate_classifier:
                   self.precision, self.roc_auc, self.gini, self.ks, 
                   self.ks_cutoff]).reshape(1,-1)
     self.df = pd.DataFrame(a,columns=columns)
+    
+#@markdown ##### **_class_** : points_allocation
+
+class points_allocation:
+  
+  '''
+  Method
+  ------
+
+  \t (1) self.fit(X)
+  \t - Fit the model according to the given initial inputs 
+  \t **Return**
+  \t - self.X (dataframe)
+  
+  \t (2) self.plot()
+  \t - Plot Weight of Evidence against Score for each feature
+  '''
+  def __init__(self, woe_df, coef_df, intercept, odds=50, pt_odds=600, pdo=20, decimal=2, width=6, height=4, 
+               c_pos='#fff200', c_neg='#aaa69d', c_line='#ea2027'):
+    
+    '''
+    Parameters
+    ----------
+
+    \t woe_df : (dataframe)
+    \t - 'variable': variable name 
+    \t - 'min' & 'max': min <= X < max 
+    \t - 'Bin': BIN number
+    \t - 'Non_events' & 'Events': number of non-events and events, respectively
+    \t - 'pct_nonevents', 'pct_events': (%) of non-events and events, respectively
+    \t - 'WOE': Weight of Evidence
+    \t - 'IV': Information Value
+
+    \t coef_df : (dataframe) 
+    \t - it is comprised of 'variable' and 'coef' obtained from model
+
+    \t intercept : (float), model intercept
+    \t odds : (int), initial odd (default=50)
+    \t pt_odds : (int), points assigned to initial odd (default=600)
+    \t pdo : (int), points that doubles the odd (default=20)
+    \t decimal : (int), score precision (decimal place)
+    \t width, height : (float), width and height of plot (default=5,4)
+    \t 
+
+    Return
+    ------
+
+    \t self.adverse_score : (float), rejection score
+    \t self.min_score, self.max_score : (float), the possible minimum and maximum scores
+    \t self.neutral_score : (float), neutral score (weighted average approach)
+    \t self.score_df : (dataframe) score distribution
+    '''
+    # pdo = Point Double the Odd
+    self.factor = pdo/np.log(2)
+    self.offset = pt_odds - self.factor*np.log(odds)
+    self.intercept = intercept
+
+    # woe and coefficient datasets
+    self.woe_df = woe_df.rename(str.lower, axis='columns')
+    self.coef_df = coef_df.rename(str.lower, axis='columns')
+
+    # color attributes
+    self.figsize = (width,height)
+    self.posbar_kwargs = dict(color=c_pos, label='WOE(Non-event>Event)', 
+                              alpha=0.8, width=0.7, align='center', 
+                              hatch='////', edgecolor='#4b4b4b', lw=1)
+    self.postxt_kwargs = dict(ha='center',va='top', rotation=0, 
+                              color='#4b4b4b', fontsize=10)
+    self.posscr_kwargs = dict(ha='center',va='bottom', rotation=0, 
+                              color=c_line, fontsize=10)
+    self.negbar_kwargs = dict(color=c_neg, label='WOE(Non-event<Event)', 
+                              alpha=0.8, width=0.7, align='center', 
+                              hatch='////', edgecolor='#4b4b4b', lw=1)
+    self.negtxt_kwargs = dict(ha='center',va='bottom', rotation=0, 
+                              color='#4b4b4b',fontsize=10)
+    self.negscr_kwargs = dict(ha='center',va='top', rotation=0, 
+                              color=c_line, fontsize=10)
+    self.score_kwargs = dict(color=c_line, lw=1, ls='--', label='score', 
+                             marker='o',markersize=4, fillstyle='none')
+    self.n_score_kwargs = dict(lw=0.8, ls='--', color='k')
+
+    # allocate points, calculate possible max, min, and adverse score
+    self.__attribute_score(decimal)
+    # neutral socre - weighted average (cutoff)
+    self.__neutral_score()
+
+  def __attribute_score(self, decimal=2):
+    
+    a = self.woe_df.merge(self.coef_df, on='variable', how='left')
+    a = a.loc[a['coef'].notna(),:]
+
+    # scaling calculation
+    n_feat = np.unique(a['variable']).shape[0]
+    incpt, offset = self.intercept/n_feat, self.offset/n_feat
+    score = -(a['coef'].astype(float) * a['woe'] + incpt) * self.factor + offset
+    a['score'] = np.round(score.values,decimal)
+    self.score_df = a.drop(['coef'], axis=1)
+    
+    # possible max and min points
+    a = self.score_df[['variable','score']].groupby(['variable']).agg(['min','max']).values
+    self.min_score, self.max_score = sum(a[:,0]), sum(a[:,1])
+    
+    # adverse score (rejection score where woe = 0)
+    self.adverse_score = -incpt * self.factor + offset
+
+  def __neutral_score(self):
+
+    a = self.score_df.copy()
+    var = a['variable'].unique()[0]
+    n_samples = sum(a.loc[a['variable']==var,['non_events','events']].sum())
+    a['pct'] = (a['non_events'] + a['events'])/n_samples
+    a['n_score'] = a['pct'] * a['score']
+    a = a[['variable','n_score']].groupby(['variable']).agg(['sum'])
+    columns = ['variable','neutral_score']
+    self.neutral_score = pd.DataFrame(a.reset_index().values, columns=columns)
+
+  def fit(self, X):
+    
+    '''
+    Parameters
+    ----------
+
+    \t X : array-like, shape (n_samples, n_features)
+
+    Returns
+    -------
+
+    \t X : dataframe, shape (n_samples, woe_features + total_score)
+    \t woe_features is list of variables from woe_df
+    '''
+    dType = tuple((pd.core.series.Series,pd.DataFrame))
+    if isinstance(X, dType)==True:
+      self.X = np.zeros(len(X)).reshape(-1,1)
+      self.X = pd.DataFrame(data=self.X, columns=['total_score'])
+      woe_var = np.unique(self.woe_df['variable'].values)
+      columns = [var for var in X.columns if var in woe_var]
+      if len(columns) > 0:
+        for (n, var) in enumerate(columns):
+          score = pd.DataFrame(data=self.__find_score(X[var]),columns=[var])
+          self.X = self.X.merge(score, left_index=True, right_index=True)
+          self.X['total_score'] = self.X['total_score'] + self.X[var]
+
+  def __find_score(self, X):
+   
+    # determine min and max 
+    r_min, r_max, x_name = np.nanmin(X), np.nanmax(X), X.name
+    a = self.score_df.loc[(self.score_df['variable']==x_name)]
+    min_bin = min(np.nanmin(a['min'].values),r_min)
+    max_bin = max(np.nanmax(a['max'].values),r_max) + 1
+    nan_bin = min_bin - 1
+    
+    # replace np.nan with the lowest number
+    X = pd.Series(X).fillna(nan_bin)
+
+    # create array of bin edges
+    bin_edges = a[['min','max']].fillna(nan_bin).values
+    bin_edges = np.sort(np.unique(bin_edges.reshape(-1)))
+    bin_edges[-1] = max_bin
+
+    # Assign group index to value array and convert to dataframe
+    X = np.digitize(X, bin_edges, right=False)
+    X = pd.DataFrame(data=X,columns=['bin'])
+    X['bin'] = X['bin'] - 1 # Bin in woe_df starts from 0
+    X = X.merge(a[['bin','score']], on=['bin'], how='left')
+    return X.drop(columns=['bin']).values
+
+  def plot(self, fpath=None, prefix=''):
+
+    '''
+    plot score distribution against WOEs 
+    ''' 
+    for var in np.unique(self.score_df['variable']):
+      fig, axis = plt.subplots(1, 1, figsize=self.figsize)
+      self.__score_woe(axis, var)
+      fig.tight_layout()
+      if fpath is not None: plt.savefig(fpath + prefix + var + '.png')
+      plt.show()
+
+  def __iv_predict(self, iv):
+    
+    '''
+    Parameter
+    ---------
+
+    \t iv : (float), Infomation Value (summation of WOEs)
+
+    Return
+    ------
+
+    \t prediction_strength : (str), IV predictiveness
+    '''
+    if iv < 0.02: return 'Not useful for prediction'
+    elif iv >= 0.02 and iv < 0.1: return 'Weak predictive Power'
+    elif iv >= 0.1 and iv < 0.3: return 'Medium predictive Power'
+    elif iv >= 0.3: return 'Strong predictive Power'
+
+  def __score_woe(self, axis, var):
+    
+    a = self.score_df.loc[self.score_df['variable']==var].copy()
+    iv = 'IV = %.4f (%s)' % (a.iv.sum(), self.__iv_predict(a.iv.sum()))
+    label = 'Variable: %s \n ' % var
+    n_score = self.neutral_score.loc[self.neutral_score['variable']==var]
+    n_score = float(n_score['neutral_score'])
+    
+    # positive and negative WOEs
+    Pos_Y = [max(n,0) for n in a['woe'].values]
+    Neg_Y = [min(n,0) for n in a['woe'].values]
+    score = a['score'].values
+    xticks = np.arange(a.shape[0])
+    xticklabels = self.__ticklabels(a['min'].values)
+
+    # plots
+    bar1 = axis.bar(xticks, Pos_Y, **self.posbar_kwargs)
+    bar2 = axis.bar(xticks, Neg_Y, **self.negbar_kwargs)
+    tw_axis = axis.twinx()
+    lns1 = tw_axis.plot(xticks, score, **self.score_kwargs)
+    lns2 = tw_axis.axhline(n_score, **self.n_score_kwargs)
+    plots = tuple((bar1, bar2, lns1[0], lns2))
+    labels = tuple((bar1.get_label(), bar2.get_label(),'score','neutral score (%d)' % n_score))
+ 
+    # text
+    for n, s in enumerate(Pos_Y):
+      if s>0: 
+        axis.text(n, -0.05, '%0.2f' % s, **self.postxt_kwargs)
+        tw_axis.text(n, score[n], '%0.0f' % score[n], **self.posscr_kwargs)
+    for n, s in enumerate(Neg_Y):
+      if s<0: 
+        axis.text(n, +0.05, '%0.2f' % s, **self.negtxt_kwargs)
+        tw_axis.text(n, score[n], '%0.0f' % score[n], **self.negscr_kwargs)
+
+    axis.set_facecolor('white')
+    axis.set_ylabel('Weight of Evidence (WOE)', fontsize=10)
+    tw_axis.set_ylabel('Score', fontsize=10)
+    axis.set_xlabel(r'$BIN_{n} = BIN_{n} \leq X < BIN_{n+1}$', fontsize=10)
+    axis.set_xticks(xticks)
+    axis.set_xticklabels(xticklabels, fontsize=10)
+    axis.set_title(label + iv)
+    tw_axis.legend(plots, labels, loc='best', framealpha=0, edgecolor='none')
+    axis.grid(False)
+  
+  def __ticklabels(self, a):
+    
+    '''
+    Set Xticklabels format
+    '''
+    a = np.array(a).tolist()
+    ticklabels = np.empty(len(a),dtype='|U100')
+    a = ['\n'.join(('missing','(nan)'))] + a[1:]
+    for n, b in enumerate(a):
+      ticklabels[n] = b
+      if n > 0:
+        if b < 1000: ticklabels[n] = '{:.1f}'.format(b)
+        else: ticklabels[n] = '{:.1e}'.format(b)
+    return ticklabels
