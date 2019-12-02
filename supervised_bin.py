@@ -49,8 +49,7 @@ class batch_evaluation:
     \t p_value : (float), significant level of Student's T-Test
     \t ttest_intv : (int), starting sub-intervals of "Monotonic-Optimal-Binning" technique
     \t min_obs : (float), minimum percentage of sample in each BIN (used in 'mono')
-    \t min_event : (float), minimum percentage of event compared to its 
-       total in each BIN
+    \t min_event : (float), minimum percentage of event compared to its total in each BIN
 
     **Selection criteria**
     \t iv_imp : (float), IV importance weight (max=1, default=0.5)
@@ -77,8 +76,7 @@ class batch_evaluation:
     self.res_df, self.bin_df = res_df, bin_df
     
     # list of columns 
-    self.bin_cols=['round', 'method', 'variable', 'model_bin', 'IV', 
-                   'correlation', 'intercept']
+    self.bin_cols=['round', 'method', 'variable', 'model_bin', 'IV', 'correlation', 'intercept']
     self.res_cols=['round', 'variable', 'min', 'max', 'Bin', 'Non_events',
                    'Events', 'pct_nonevents', 'pct_events', 'WOE', 'IV']
     
