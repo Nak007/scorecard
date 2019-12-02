@@ -41,8 +41,7 @@ class k_fold:
       from sklearn.model_selection import KFold
 
       self.model, self.cls_metrics = model, cls_metrics
-      self.kf = KFold(n_splits=n_splits, shuffle=False,
-                      random_state=random_state)
+      self.kf = KFold(n_splits=n_splits, shuffle=False, random_state=random_state)
     
     def fit(self, X, y):
       
@@ -101,8 +100,7 @@ class stepwise_logistics:
   https://www.statsmodels.org/dev/_modules/statsmodels/discrete/discrete_model.html#Logit
   '''
 
-  def __init__(self, method='basinhopping', selection='forward', 
-               threshold=0.025, fit_intercept=False):
+  def __init__(self, method='basinhopping', selection='forward', threshold=0.025, fit_intercept=False):
     
     '''
     Parameters
@@ -337,8 +335,7 @@ class evaluate_classifier:
   \t - plots of statistical measurement of goodness-to-fit
   '''
 
-  def __init__(self, lb_event='event', lb_nonevent='non-event',  
-               width=3.75, height=3.5, n_step=20, 
+  def __init__(self, lb_event='event', lb_nonevent='non-event', width=3.75, height=3.5, n_step=20, 
                c_line ='#ea2027', c_fill ='#7f8fa6'):
     
     '''
