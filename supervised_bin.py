@@ -1168,3 +1168,80 @@ class evaluate_bins:
       print('self.woe_df does not exist')
       return None
     else: plot_woe().plot(self.woe_df,var_name, rho=self.rho, fname=fname)
+      
+#@markdown ##### **_class_** : woe_transform
+
+class woe_transform:
+  
+  '''
+  Method
+  ------
+
+  \t self.fit(X)
+  \t - Fit the model according to the given initial inputs.
+  \t **Return**
+  \t - self.X (dataframe)
+  '''
+
+  def __init__(self, woe_df):
+
+    '''
+    Parameters
+    ----------
+
+    \t woe_df : (dataframe)
+    \t - 'variable': variable name 
+    \t - 'min' & 'max': min <= X < max 
+    \t - 'Bin': BIN number
+    \t - 'Non_events' & 'Events': number of non-events and events, respectively
+    \t - 'pct_nonevents', 'pct_events': (%) of non-events and events, respectively
+    \t - 'WOE': Weight of Evidence
+    \t - 'IV': Information Value
+    '''
+    self.woe_df = woe_df.rename(str.lower,axis=1)
+    
+  def fit(self, X):
+
+    '''
+    Fitting model
+    Parameters
+    ----------
+
+    \t X : array-like or sparse matrix, shape (n_samples, n_features)
+    '''
+    dType = tuple((pd.core.series.Series, pd.DataFrame))
+    if isinstance(X, dType)==True: 
+      woe_var = np.unique(self.woe_df['variable'].values)
+      columns = [var for var in X.columns if var in woe_var]
+      if len(columns) > 0:
+        self.X = pd.DataFrame()
+        for (n, var) in enumerate(columns):
+          woe = pd.DataFrame(data=self.__assign_woe(X[var]), columns=[var])
+          if n==0: self.X = woe
+          else: self.X = self.X.merge(woe, left_index=True, right_index=True)
+ 
+  def __assign_woe(self, X):
+    
+    '''
+    X must be Series
+    '''
+    # determine min and max
+    r_min, r_max = np.nanmin(X), np.nanmax(X)
+    woe_df = self.woe_df.loc[(self.woe_df['variable']==X.name)]
+    min_bin = min(np.nanmin(woe_df['min'].values),r_min)
+    max_bin = max(np.nanmax(woe_df['max'].values),r_max) + 1
+    nan_bin = min_bin - 1
+    
+    # replace np.nan with the lowest number
+    X = pd.Series(X).fillna(nan_bin)
+    # create array of bin edges
+    bin_edges = woe_df[['min','max']].fillna(nan_bin).values
+    bin_edges = np.sort(np.unique(bin_edges.reshape(-1)))
+    bin_edges[-1] = max_bin
+
+    # Assign group index to value array and convert to dataframe
+    X = np.digitize(X, bin_edges, right=False)
+    X = pd.DataFrame(data=X, columns=['bin'])
+    X['bin'] = X['bin'] - 1 # Bin in woe_df starts from 0
+    X = X.merge(woe_df[['bin','woe']], on=['bin'], how='left')
+    return X.drop(columns=['bin']).values
