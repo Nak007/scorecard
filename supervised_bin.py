@@ -686,12 +686,11 @@ class woe_binning:
     Creates percentile Bins
     NOTE: Each bin should contain at least 5% percent observations
     '''
-    nonan_X = X[np.logical_not(np.isnan(X))]
-    bin_incr = 100/float(bins)
-    bin_edges = [np.percentile(nonan_X, min(n*bin_incr,100)) for n in range(bins+1)]
+    a, b = X[~np.isnan(X)], 100/float(bins)
+    bin_edges = [np.percentile(a, min(n*b,100)) for n in range(bins+1)]
     bin_edges = np.unique(bin_edges)
     bin_edges[-1:] = bin_edges[-1:] + 1
-    return np.unique(bin_edges)
+    return bin_edges
   
   def __entropy(self, y, X, cutoff=None):
   
