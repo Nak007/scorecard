@@ -277,7 +277,6 @@ class woe_binning:
   \t - Fit the model according to the given initial inputs.
   \t **Return** 
   \t - array of bin edges
-  
   \t (2) self._woe_btw_bins(y, X, r_min, r_max, plot=False, X_name=None)
   \t - find series of cut-offs according to the given initial inputs and range  
   \t **Return** 
@@ -396,16 +395,16 @@ class woe_binning:
     '''
     Chi-merge
     (1) For every pair of adjecent bin a X2 values is computed
-    (2) Merge pair with lowest X2 into single bin
+    (2) Merge pair with lowest X2 (highest p-value) into single bin
     (3) Repeat (1) and (2) until all X2s are more than predefined threshold
     '''
     # Initialize the overall trend and cut point
-    dof = len(np.unique(y)) -1
+    dof = len(np.unique(y)) - 1
     threshold = chi2.isf(self.chi_alpha, df=dof)
     p_value = 1-chi2.cdf(threshold, df=dof) # <-- Rejection area
     bin_edges = self.__pct_bin_edges(X, self.chi_intv) # <-- Intervals
     n_bins = len(bin_edges) + 1
-    
+
     while (len(bin_edges) < n_bins) & (len(bin_edges) > 3):
       n_bins = len(bin_edges)
       crit_val = np.full(n_bins-2,0.0)
@@ -684,14 +683,63 @@ class woe_binning:
   
     ''' 
     Creates percentile Bins
-    NOTE: Each bin should contain at least 5% percent observations
+    Note: Each bin should contain at least 5% of observations
     '''
     a, b = X[~np.isnan(X)], 100/float(bins)
     bin_edges = [np.percentile(a, min(n*b,100)) for n in range(bins+1)]
     bin_edges = np.unique(bin_edges)
     bin_edges[-1:] = bin_edges[-1:] + 1
+    if len(bin_edges) <=2: bin_edges = self.__equal_bin(a,2)
     return bin_edges
   
+  def __equal_bin(self, x, method=0):
+  
+    '''
+    Methods
+    -------
+
+    (1) Square-root choice: takes the square root of the number of data 
+        points in the sample 
+    (2) Sturges' formula is derived from a binomial distribution and implicitly 
+        assumes an approximately normal distribution
+    (3) The Rice Rule is presented as a simple alternative to Sturges's rule
+    (4) Doane's formula is a modification of Sturges' formula, which attempts 
+        to improve its performance with non-normal data.
+    (5) Scott's normal reference rule
+    (6) Freedman–Diaconis' choice 	
+    '''
+    a = x[~np.isnan(x)].copy()
+    v_max, v_min, v_sum = max(a), min(a), sum(a)
+    stdev, median, n = np.std(a), np.median(a), len(a)
+    method = max(min(method,6),1)
+
+    if method==1: 
+      bins = math.sqrt(n)
+    elif method==2: 
+      bins = math.ceil(math.log(n,2) + 1)
+    elif method==3:                  
+      bins = 2*(n**(1/3))
+    elif method==4:
+      g = abs(((v_sum/n)-median)/stdev)
+      n_stdev = (6*(n-2)/((n+1)*(n+3)))**0.5
+      bins = 1 + math.log(n,2) + math.log((1+g/n_stdev),2)
+    elif method==5:
+      bin_width = 3.5*stdev/(n**(1/3))
+      if bin_width > 0: bins = (v_max-v_min)/bin_width
+      else: bins = math.ceil(math.log(n,2) + 1)
+    elif method==6:
+      p25, p75 = np.percentile(a,25), np.percentile(a,75)
+      bin_width = 2*(p75-p25)/(n**(1/3))
+      if bin_width > 0: bins = (v_max-v_min)/bin_width
+      else: bins = math.ceil(math.log(n,2) + 1)
+
+    # round up number of bins 
+    bins = max(int(math.ceil(bins)),2)
+    bin_width = (v_max-v_min)/bins
+    bin_edges = [min(v_min+(n*bin_width),v_max) for n in range(bins+1)]
+    bin_edges[-1] = bin_edges[-1] + 1
+    return np.unique(bin_edges)
+
   def __entropy(self, y, X, cutoff=None):
   
     '''
@@ -823,7 +871,7 @@ class woe_binning:
     {a : dist. of non-events , b : dist. of events}
     '''
     return (a-b)*np.log(a/b)
-
+  
 #@markdown **_class_** : plot_woe
 
 class plot_woe:
