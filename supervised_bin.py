@@ -1014,8 +1014,10 @@ class plot_woe:
     axis.set_xticks(self.xticks)
     axis.set_xticklabels(self.xticklabels, fontsize=10)
     axis.set_title(label + iv)
-    ylim = axis.get_ylim()
-    axis.set_ylim(ylim[0]-0.2,ylim[1])
+    yticks = axis.get_yticks()
+    diff = max(np.diff(yticks))
+    n_low, n_high = min(yticks)-diff, max(yticks)+diff
+    axis.set_ylim(n_low, n_high)
     axis.legend(**self.lg_kwargs)
     axis.grid(False)
 
@@ -1047,6 +1049,10 @@ class plot_woe:
     axis.set_xticks(self.xticks)
     axis.set_xticklabels(self.xticklabels, fontsize=10)
     axis.set_title(label)
+    yticks = axis.get_yticks()
+    diff = max(np.diff(yticks))
+    n_low, n_high = min(yticks)-diff, max(yticks)+diff
+    axis.set_ylim(n_low, n_high)
     axis.legend(**self.lg_kwargs)
     axis.grid(False)
     ylim = axis.get_ylim()
