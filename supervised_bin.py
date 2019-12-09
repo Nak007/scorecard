@@ -356,34 +356,37 @@ class woe_binning:
     Author: Pavel Mironchyk and Viktor Tchistiakov (rabobank.com)
     (1) For every pair of adjecent bin p-value values is computed
     (2) if number of defaults or number of observation is less than defined limits
-    add 1 to p-value. if a bin contains just one observation then set p-value equals to 2.
+        add 1 to p-value. if a bin contains just one observation then set p-value 
+        equals to 2.
     (3) Merge pair with highest p-value into single bin
     (4) Repeat (1), (2) and (3) until all p-values are less than critical p-value
     '''
     # Initialize the overall trend and cut point
-    nonan_X = X[np.logical_not(np.isnan(X))]
-    nonan_y = y[np.logical_not(np.isnan(X))]
+    nonan_X, nonan_y = X[~np.isnan(X)], y[~np.isnan(X)]
     n_target = nonan_y[nonan_y==1].size
     df = self.__n2_df(y, X)
     bin_edges = self.__pct_bin_edges(X, self.ttest_intv) # <-- Intervals
     n_bins = len(bin_edges) + 1
     
     while (len(bin_edges) < n_bins) & (len(bin_edges) > 3):
-      n_bins = len(bin_edges)
-      p_values = np.full(n_bins-2,0.0)
+      n_bins = len(bin_edges); p_values = np.full(n_bins-2,0.0)
       for n in range(n_bins-2):
         r_min, cutoff, r_max = bin_edges[n], bin_edges[n+1], bin_edges[n+2]
         interval = (nonan_X>=r_min) & (nonan_X<r_max)
+
+        # number of observations from both sides of cutoff
+        x1 = nonan_X[(nonan_X>=r_min) & (nonan_X<cutoff)]
+        x2 = nonan_X[(nonan_X>=cutoff) & (nonan_X<r_max)]
         # number of observations when merged
         n_obs = nonan_X[interval].size
-        n_event = nonan_y[interval & (nonan_y==1)].size/n_target
-        if n_obs == 1: p_values[n] = 2
-        elif (n_obs < self.min_obs) | (n_event < self.min_event): p_values[n] = 1
-        else:
-          x1 = nonan_X[(nonan_X>=r_min) & (nonan_X<cutoff)]
-          x2 = nonan_X[(nonan_X>=cutoff) & (nonan_X<r_max)]
-          _, p = self.__independent_ttest(x1, x2) # <-- t-test
-          p_values[n] = p
+        min_obs = min(n_obs, x1.size, x2.size)
+        # percent distribution of events
+        pct_event = nonan_y[interval & (nonan_y==1)].size/n_target
+
+        if min_obs<=1: p_values[n] = 2
+        elif (n_obs<self.min_obs)|(pct_event<self.min_event): p_values[n] = 1
+        else: p_values[n] = self.__independent_ttest(x1, x2)[1]
+          
       if max(p_values) > self.p_value:
         p_values = [-float('Inf')] + p_values.tolist() + [-float('Inf')]
         bin_edges = [a for a, b in zip(bin_edges,p_values) if b < max(p_values)]
@@ -410,8 +413,7 @@ class woe_binning:
       crit_val = np.full(n_bins-2,0.0)
       for n in range(n_bins-2):
         r_min, cutoff, r_max = bin_edges[n], bin_edges[n+1], bin_edges[n+2]
-        c, _ = self.__chi_square(y, X, r_min, r_max, cutoff)
-        crit_val[n] = c
+        crit_val[n] = self.__chi_square(y, X, r_min, r_max, cutoff)[0]
       if min(crit_val) < threshold:
         crit_val = [float('Inf')] + crit_val.tolist() + [float('Inf')]
         bin_edges = [a for a, b in zip(bin_edges,crit_val) if b > min(crit_val)]
@@ -425,8 +427,8 @@ class woe_binning:
     indicators, which are Information Value, Entropy, and Gini Impurity 
     (1) For each interval, divide input into several cut points 
     (2) for each cut point, compute the indicator that satisfies trend
-    of WOEs and optimizes objective function. if not, no cutoff is selected
-    for this bin.
+        of WOEs and optimizes objective function. if not, no cutoff is selected
+        for this bin.
     (3) Repeat (1) and (2) until no cutoff is made
     '''
     # Initialize the overall trend and cut point
@@ -551,8 +553,7 @@ class woe_binning:
       # create result dataframe
       self.woe_df = self.__woe_df(left_woe, right_woe, v_list, new_bin)
       if (plot==True) & (self.woe_df.shape[0]>=1): 
-        self.__plot_woe(r_min=r_min, r_max=r_max, 
-                        bin_decimal=bin_decimal, fname=fname)
+        self.__plot_woe(r_min=r_min, r_max=r_max, bin_decimal=bin_decimal, fname=fname)
       return self.woe_df
     else:
       print('The method (%s) is not applicable to this instance' % self.method)
@@ -683,13 +684,17 @@ class woe_binning:
   
     ''' 
     Creates percentile Bins
-    Note: Each bin should contain at least 5% of observations
+    - Each bin should contain at least 5% of observations
+    - In case when X contains the same value more than 90% or more, this
+      affects percentile binning to provide an unreasonable range of data.
+      Thus, it will switch to equal-binning method to group those with the 
+      same value into one bin while the others will spread out.
     '''
     a, b = X[~np.isnan(X)], 100/float(bins)
     bin_edges = [np.percentile(a, min(n*b,100)) for n in range(bins+1)]
     bin_edges = np.unique(bin_edges)
     bin_edges[-1:] = bin_edges[-1:] + 1
-    if len(bin_edges) <=2: bin_edges = self.__equal_bin(a,2)
+    if len(bin_edges) <=2: bin_edges = self.__equal_bin(a,3)
     return bin_edges
   
   def __equal_bin(self, x, method=0):
@@ -797,7 +802,7 @@ class woe_binning:
     
     '''
     Using Chi-Square to test similarity or Goodness-of-Fit
-    Null Hypothesis: two intervals are dependent (or similar)
+    Null hypothesis: two intervals are dependent (or similar)
     '''
     df = self.__n2_df(y, X)
     df = df.loc[(df['variable']>=r_min) & (df['variable']<r_max)]
@@ -819,7 +824,7 @@ class woe_binning:
     
     '''
     Two-sample t-test using p-value 
-    Null Hypothesis: mean of two intervals are the same  
+    Null hypothesis: mean of two intervals are the same  
     '''
     # calculate means
     mean1, mean2 = np.mean(x1), np.mean(x2)
