@@ -330,7 +330,7 @@ class evaluate_classifier:
   ------
 
   \t self.fit(n_class=1)
-  \t - Fit the model according to the given initial inputs and predefinced class
+  \t - Fit the model according to the given initial inputs and predefined class
   \t **Return**
   \t - plots of statistical measurement of goodness-to-fit
   '''
