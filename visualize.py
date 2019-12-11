@@ -104,7 +104,7 @@ class target_rate:
         tw_axis.set_ylabel('Target Rate (%) by BIN', fontsize=10)
         t_group = np.digitize(nonan_x,bins=bin_edges)[nonan_y==1]
         t_nan = (nan_y==1).sum()/max(len(nan_y),1)*100
-        target_rate = [(t_group==n).sum()/max(d,1)*100 for n,d in zip(np.unique(t_group),a)]
+        target_rate = [(t_group==n).sum()/max(d,1)*100 for n,d in zip(x_ticks,a)]
         target_rate = [t_nan] + target_rate
         line1 = tw_axis.plot(x_ticks, target_rate, **self.l_kwargs)
         
