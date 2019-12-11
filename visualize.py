@@ -11,8 +11,7 @@ class target_rate:
     \t **Return**
     \t - plot histogram as well as target rate
     '''
-    def __init__(self, bins=10, width=4, height=3.5, axis_cols=4, 
-                 show_pct=False, show_legend=True):
+    def __init__(self, bins=10, width=4, height=3.5, axis_cols=4, show_pct=False, show_legend=True):
         
         '''
         Parameters
