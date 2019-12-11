@@ -18,11 +18,11 @@ class target_rate:
         Parameters
         ----------
         
-        \t bins : (int), maximum number of bins
-        \t width, height : (float), width and height of plot
-        \t axis_cols : (int), number of columns when plots are displayed
-        \t show_pct : (bool), percentage of histogram is visible when True
-        \t show_legend : (bool), legend is visible when True
+        \t bins : (int), maximum number of bins (default=10)
+        \t width, height : (float), width and height of plot (default=(4,3.5))
+        \t axis_cols : (int), number of columns when plots are displayed (default=4)
+        \t show_pct : (bool), percentage of histogram is visible when True (default=False)
+        \t show_legend : (bool), legend is visible when True (default=True)
         '''
         self.bins = bins
         self.width, self.height = width, height
@@ -32,8 +32,7 @@ class target_rate:
         self.n_kwargs = b_kwargs.copy(); self.n_kwargs.update(dict(color='#00ff9d', label='w/o nan'))
         self.t_kwargs = b_kwargs.copy(); self.t_kwargs.update(dict(color='#ff009d', label='nan'))
         self.a_kwargs = dict(color='k', ha='center',va='bottom', fontsize=11)
-        self.l_kwargs = dict(color='k', lw=1, marker='o', markersize=5, ls='--', label='%target', 
-                        markerfacecolor='none')
+        self.l_kwargs = dict(color='k', lw=1, marker='o', markersize=5, ls='--', label='%target', markerfacecolor='none')
         self.lg_kwargs = dict(loc='best', fontsize=10, framealpha=0, edgecolor='none')
     
     def fit(self, X, y, fname=None):
@@ -95,8 +94,6 @@ class target_rate:
         axis.set_xlabel(r'$BIN_{n}$ $\leq$ X < $BIN_{n+1}$')
         axis.set_xticks(x_ticks)
         axis.set_xticklabels(x_labels, fontsize=10, rotation=90)
-        title = '%s (nan=%0.2f%%)' % (x.name, len(nan_y)/n_sample*100)
-        axis.set_title(title, fontsize=12)
         axis.grid(False)
 
         # plot target rate
@@ -105,8 +102,9 @@ class target_rate:
         t_group = np.digitize(nonan_x,bins=bin_edges)[nonan_y==1]
         t_nan = (nan_y==1).sum()/max(len(nan_y),1)*100
         target_rate = [(t_group==n).sum()/max(d,1)*100 for n,d in zip(x_ticks,a)]
-        target_rate = [t_nan] + target_rate
-        line1 = tw_axis.plot(x_ticks, target_rate, **self.l_kwargs)
+        line1 = tw_axis.plot(x_ticks[1:], target_rate, **self.l_kwargs)
+        title = '%s \n nan=%0.2f%%, target=%0.2f%%' % (x.name, len(nan_y)/n_sample*100,t_nan)
+        axis.set_title(title, fontsize=11)
         
         # legend
         if self.show_legend:
