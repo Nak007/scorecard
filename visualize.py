@@ -32,7 +32,8 @@ class target_rate:
         self.n_kwargs = b_kwargs.copy(); self.n_kwargs.update(dict(color='#00ff9d', label='w/o nan'))
         self.t_kwargs = b_kwargs.copy(); self.t_kwargs.update(dict(color='#ff009d', label='nan'))
         self.a_kwargs = dict(color='k', ha='center',va='bottom', fontsize=11)
-        self.l_kwargs = dict(color='k', lw=1, marker='o', markersize=5, ls='--', label='%target', markerfacecolor='none')
+        self.l_kwargs = dict(color='k', lw=1, marker='o', markersize=5, ls='--', 
+                             label='%target', markerfacecolor='none')
         self.lg_kwargs = dict(loc='best', fontsize=10, framealpha=0, edgecolor='none')
     
     def fit(self, X, y, fname=None):
@@ -72,6 +73,10 @@ class target_rate:
         unq_bins = np.unique(nonan_x)
         bins = min(max(2,len(unq_bins)),self.bins)
         a, bin_edges = np.histogram(nonan_x,bins=bins)
+        bin_edges[-1] = bin_edges[-1] + 1
+        # eliminate bin that contains no samples
+        bins = [min(nonan_x)] + [m for m,n in zip(bin_edges[1:],a) if n > 0]
+        a, bin_edges = np.histogram(nonan_x,bins=bins)
 
         # x ticks and labels
         x_ticks = range(len(a)+1)
@@ -101,7 +106,7 @@ class target_rate:
         tw_axis.set_ylabel('Target Rate (%) by BIN', fontsize=10)
         t_group = np.digitize(nonan_x,bins=bin_edges)[nonan_y==1]
         t_nan = (nan_y==1).sum()/max(len(nan_y),1)*100
-        target_rate = [(t_group==n).sum()/max(d,1)*100 for n,d in zip(x_ticks,a)]
+        target_rate = [(t_group==n).sum()/max(d,1)*100 for n,d in zip(x_ticks[1:],a)]
         line1 = tw_axis.plot(x_ticks[1:], target_rate, **self.l_kwargs)
         title = '%s \n nan=%0.2f%%, target=%0.2f%%' % (x.name, len(nan_y)/n_sample*100,t_nan)
         axis.set_title(title, fontsize=11)
