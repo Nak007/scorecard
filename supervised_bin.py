@@ -4,7 +4,7 @@ from scipy.stats import spearmanr, pearsonr, sem, t, chi2
 import scipy.stats as st, ipywidgets as widgets
 from IPython.display import HTML, display
 
-#@markdown **_class_** : batch_evaluation
+# **_class_** : batch_evaluation
 
 class batch_evaluation:
 
@@ -263,7 +263,7 @@ class batch_evaluation:
             X = pd.DataFrame(data=np.array(X),columns=columns)
         return X, list(X)
 
-#@markdown **_class_** : woe_binning
+# **_class_** : woe_binning
 
 class woe_binning:
   
@@ -476,8 +476,8 @@ class woe_binning:
             b = woe_df.loc[cond,['value','cutoffs']]
             b = b.sort_values(['value'], ascending=False).values[:,1]
 
-        # select cutoff
-        if len(b) != 0: cutoff = b[min(self.n_order-1,len(b)-1)]
+            # select cutoff
+            if len(b) != 0: cutoff = b[min(self.n_order-1,len(b)-1)]
 
         return cutoff, woe_corr
    
@@ -876,7 +876,7 @@ class woe_binning:
         '''
         return (a-b)*np.log(a/b)
 
-#@markdown **_class_** : plot_woe
+# **_class_** : plot_woe
 
 class plot_woe:
 
@@ -1059,7 +1059,7 @@ class plot_woe:
         ylim = axis.get_ylim()
         axis.set_ylim(ylim[0]-5,ylim[1]+5)
 
-#@markdown **_class_** : evaluate_bins
+# **_class_** : evaluate_bins
 
 class evaluate_bins:
   
@@ -1227,7 +1227,7 @@ class evaluate_bins:
             return None
         else: plot_woe().plot(self.woe_df,var_name, rho=self.rho, fname=fname)
 
-#@markdown ##### **_class_** : woe_transform
+# **_class_** : woe_transform
 
 class woe_transform:
   
