@@ -249,10 +249,9 @@ class batch_evaluation:
     def __to_df(self, X):
 
         '''
-        if X is an array, it will be transformed to dataframe.
+        if X is an array shape of (n_sample,n_features), it will be transformed to dataframe.
         Name(s) will be automatically assigned to all columns i.e. X1, X2, etc.
-        
-        
+        Update 12-12-2010: Remove variable(s) that contains only nan
         '''
         if isinstance(X, pd.core.series.Series):
             X = pd.DataFrame(X)
@@ -261,7 +260,14 @@ class batch_evaluation:
             except: n_col = 1
             columns = ['X' + str(n+1) for n in range(n_col)]
             X = pd.DataFrame(data=np.array(X),columns=columns)
-        return X, list(X)
+            
+        # Remove variable(s) that contains only nan
+        features = list()
+        for var in X.columns:
+            nan = X[var].isna().sum()/X.shape[0]
+            if nan < 1: features.append(var)
+
+        return X[features], features
 
 # **_class_** : woe_binning
 
