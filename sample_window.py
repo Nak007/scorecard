@@ -207,9 +207,8 @@ class vintage_analysis:
         t = 'Vintage Analysis (by as-of) \n observation = %d, performance = %d, dpd = %d+' 
         axis.set_title(t % (self.obs_mth, self.per_mth, self.per_dpd), fontsize=12)
         axis.set_xticklabels(['M'+str(n) for n in x_ticks], fontsize=10)
-        kwargs = dict(loc='upper left', fontsize=10, facecolor='white', 
-                      edgecolor='k', ncol=n_col, fancybox=True, shadow=True, 
-                      bbox_to_anchor=(1,1))
+        kwargs = dict(loc='upper left', fontsize=10, facecolor='white', edgecolor='k', ncol=n_col, 
+                      fancybox=True, shadow=True, bbox_to_anchor=(1,1))
         axis.legend(**kwargs)
         axis.grid(False)
         
@@ -237,8 +236,7 @@ class vintage_analysis:
         axis.fill_between(x_ticks,y,**kwargs)
 
         bbx_kw = dict(boxstyle='round',facecolor='white',alpha=0)
-        s = tuple(('Sample = {:,.0f}'.format(n_total),
-                   '%BAD = {:,.2f}% ({:,.0f})'.format(max(y),max(y)*n_total/100)))
+        s = tuple(('Sample = {:,.0f}'.format(n_total),'%BAD = {:,.2f}% ({:,.0f})'.format(max(y),max(y)*n_total/100)))
         axis.text(0.05, 0.95, '\n'.join(s), transform=axis.transAxes, fontsize=12, va='top', ha='left', bbox=bbx_kw) 
         axis.set_facecolor('white')
         axis.set_ylabel('Cummulative Bad (%)', fontsize=10)
@@ -277,11 +275,11 @@ class waterfall:
         \t lb_inc, lb_neg : (str), label of positive and negative values
         '''
         self.init_cols = ['item', 'amount']
-        self.color, self.labels = [c_inc, c_dec], [lb_inc, lb_neg]
+        self.color, self.labels = [c_inc, c_dec], [lb_neg, lb_inc]
         self.va = ['top','bottom']
         self.pct = ['-{:.2f}%','+{:.2f}%']
         self.amt = ['(-{:,.0f})','(+{:,.0f})']
-        self.b_kwargs = dict(width=0.6, color='#fed434', alpha=0.7, edgecolor='#6b6b6b',hatch='////', lw=1)
+        self.b_kwargs = dict(width=0.6, color='#fed434', alpha=0.6, edgecolor='#b9b9b9', hatch='////', lw=1)
         self.l_kwargs = dict(fontsize=10, framealpha=0, edgecolor='none')
 
     def __waterfall_df(self, a):
@@ -310,9 +308,8 @@ class waterfall:
         a['pct'] = a['height']/float(a.iloc[0,5])*100
         return a
 
-    def plot(self, a, width=6, height=4, rotation=0, n_pts=0.1, 
-           y_label='Amount', title='Waterfall Chart', loc='best', 
-           fname=None):
+    def plot(self, a, width=6, height=4, rotation=0, n_pts=0.1, y_label='Amount', 
+             title='Waterfall Chart', loc='best', fname=None):
 
         '''
         Parameters
@@ -374,7 +371,7 @@ class waterfall:
         axis.set_xticklabels(x_labels, fontsize=10, rotation=rotation)
         self.l_kwargs.update(dict(loc=loc))
         axis.legend(**self.l_kwargs)
-        axis.set_title(title, fontsize=14)
+        axis.set_title(title, fontsize=12)
         axis.grid(False)
 
         plt.tight_layout()
