@@ -82,7 +82,7 @@ class batch_evaluation:
                        'Events', 'pct_nonevents', 'pct_events', 'WOE', 'IV']
 
         # Set label format
-        self.prog_lb = '** Variable: {var} (method={m}) **'
+        self.prog_lb = ' Variable : {var} (method = {m})'
 
         # define method
         if isinstance(method,str): self.method = list([method])
@@ -99,9 +99,7 @@ class batch_evaluation:
         \t X : {array-like, sparse matrix}, shape (n_samples, n_features)
         '''
         # Assign value to variables
-        self.__widgets()
-        y = np.array(y)
-        X, columns = self.__to_df(X)
+        self.__widgets(); y = np.array(y); X, columns = self.__to_df(X)
         t_round, n_round = len(columns)*len(self.method) , 0
 
         # dataFrames for WOE results and list of hyper-parameters
@@ -118,9 +116,9 @@ class batch_evaluation:
                 # initial values
                 self.kwargs['method'] = n_method
                 bin_model = woe_binning(**self.kwargs)
+                bin_model.fit(y, X[var])
 
                 # determine coarse binning
-                bin_model.fit(y, X[var].values)
                 md = evaluate_bins(y, X[var].values, bin_model.bin_edges)
 
                 # find difference of intercepts
@@ -163,9 +161,10 @@ class batch_evaluation:
         abovementioned, the earliest 'round' is selected.
         '''
         bin_df = self.bin_df.rename(str.lower,axis=1).copy()
+        bin_df = bind.loc[~bin_df['iv'].isna()]
 
         # set out conditions
-        cond = (bin_df['iv']>=self.min_iv) 
+        cond = (bin_df['iv']>=self.min_iv)
         cond = cond & (abs(bin_df['correlation'])>=self.min_corr)
         cond = cond & (bin_df['intercept']<=self.max_tol)
         bin_df = bin_df.loc[cond]
@@ -189,9 +188,8 @@ class batch_evaluation:
     def plot(self, column='round', value=1, adjusted=False):
 
         '''
-        Plot WOE from selected list
-        Selection can be made from either 'round' or 'varialbe' column
-        Value must correpond to selected columns (str, int, or list-like)
+        Plot WOE (Weight of Evidence) from selected list. Column selection can be made from 
+        either 'round' or 'varialbe'. Value must correpond to selected columns (str, int, or list-like)
 
         Parameters
         ----------
@@ -210,17 +208,14 @@ class batch_evaluation:
         for n in value:
             # select dataset given column and its value
             a = bin_df.loc[(bin_df[column]==n)]
-            # count how many rounds there are
+            # count how many rounds there are. This happens when 'variable' is selected
             n_round = np.unique(a['round'].values)
             if n_round.size > 0:
-                for i, m in enumerate(n_round):
+                for m in n_round:
                     b = a.loc[(a['round']==m)]
-                    var_name = str(b['variable'].values)
-                    rho = float(b['correlation'].values)
-                    method = str(b['method'].values)
                     woe_df = self.res_df.loc[(self.res_df['round']==m)]
-                    print('method: %s (round=%d)' % (method,m))
-                    plot_woe().plot(woe_df, var_name, rho=rho) 
+                    print('method: %s (round=%d)' % (b['method'][0], m))
+                    plot_woe().plot(woe_df, b['variable'][0], rho=b['correlation'][0]) 
             else: print('[Empty list]: %s' % n)
   
     def __widgets(self):
@@ -234,13 +229,13 @@ class batch_evaluation:
         w = widgets.VBox([self.w_t, self.w_f])
         display(w); time.sleep(5)
   
-    def __update_widget(self, pct_val, n_label=None):
+    def __update_widget(self, pct, label=None):
 
         '''
         Update widget
         '''
-        self.w_f.value = pct_val * 100
-        self.w_t.value = '({:.0f}%) '.format(pct_val*100) + n_label 
+        self.w_f.value = pct*100
+        self.w_t.value = '({:.0f}%) '.format(pct*100) + label 
         time.sleep(0.1)
         if pct_val == 1: 
             self.w_f.bar_style = 'success'
@@ -249,24 +244,29 @@ class batch_evaluation:
     def __to_df(self, X):
 
         '''
-        if X is an array shape of (n_sample,n_features), it will be transformed to dataframe.
-        Name(s) will be automatically assigned to all columns i.e. X1, X2, etc.
-        Update 12-12-2010: Remove variable(s) that contains only nan
+        (1) if X is an array with shape of (n_sample,n_features), it will be transformed to dataframe.
+            Name(s) will be automatically assigned to all columns i.e. X1, X2, etc.
+        (2) Remove variable(s) that contains only nan (missing) and will be kept in self.n_missing 
+        (3) Remove variable(s), apart from nan (missing), contains only one value (like a constant) and
+            will be kept in self.n_constant
         '''
         if isinstance(X, pd.core.series.Series):
             X = pd.DataFrame(X)
-        elif isinstance(X, pd.DataFrame)==False:
-            try: n_col = X.shape[1]
-            except: n_col = 1
-            columns = ['X' + str(n+1) for n in range(n_col)]
+        elif isinstance(X, list):
+            X = pd.DataFrame(data=np.array(X),columns='X0')
+        elif isinstance(X, np.ndarray):
+            columns = ['X'+str(n+1) for n in range(X.shape[1])]
             X = pd.DataFrame(data=np.array(X),columns=columns)
-            
+        
         # Remove variable(s) that contains only nan
-        features = list()
+        features, n_missing, n_constant = list(), list(), list()
         for var in X.columns:
             nan = X[var].isna().sum()/X.shape[0]
-            if nan < 1: features.append(var)
-
+            unq = X.loc[~X[var].isna(),var].unique()
+            if nan==1: n_missing.append(var)
+            elif len(unq)<2: n_constant.append(var)  
+            else: features.append(var)
+        self.n_missing, self.constant = n_missing, n_constant
         return X[features], features
 
 # **_class_** : woe_binning
@@ -407,6 +407,7 @@ class woe_binning:
         (1) For every pair of adjecent bin a X2 values is computed
         (2) Merge pair with lowest X2 (highest p-value) into single bin
         (3) Repeat (1) and (2) until all X2s are more than predefined threshold
+        Note: minimum number of bins is 2
         '''
         # Initialize the overall trend and cut point
         dof = len(np.unique(y)) - 1
@@ -415,7 +416,7 @@ class woe_binning:
         bin_edges = self.__pct_bin_edges(X, self.chi_intv) # <-- Intervals
         n_bins = len(bin_edges) + 1
 
-        while (len(bin_edges) < n_bins) & (len(bin_edges) > 3):
+        while (len(bin_edges) < n_bins) & (len(bin_edges) > 2):
             n_bins = len(bin_edges)
             crit_val = np.full(n_bins-2,0.0)
             for n in range(n_bins-2):
@@ -437,6 +438,7 @@ class woe_binning:
             of WOEs and optimizes objective function. if not, no cutoff is selected
             for this bin.
         (3) Repeat (1) and (2) until no cutoff is made
+        Note: minimum number of bins is 2
         '''
         # Initialize the overall trend and cut point
         r_min , r_max = np.nanmin(X), np.nanmax(X) + 1 
@@ -451,8 +453,8 @@ class woe_binning:
                     cutoff, _ = self.__find_cutoff(y, X , r_min , r_max)
                     if cutoff != r_min: new_bin_edges.append(cutoff)
                 bin_edges.extend(new_bin_edges)
-                bin_edges = np.unique(np.sort(bin_edges,axis=None)).tolist()
-        else: bin_edges = np.arange(3)
+                bin_edges = np.unique(np.sort(bin_edges,axis=None)).tolist()          
+        else: bin_edges = [r_min, np.mean([r_min,r_max]) ,r_max+1]
         self.bin_edges = bin_edges
 
     def __find_cutoff(self, y, X, r_min, r_max):
