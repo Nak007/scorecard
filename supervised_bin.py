@@ -160,7 +160,7 @@ class batch_evaluation:
         abovementioned, the earliest 'round' is selected.
         '''
         bin_df = self.bin_df.rename(str.lower,axis=1).copy()
-        bin_df = bind.loc[~bin_df['iv'].isna()]
+        bin_df = bin_df.loc[~bin_df['iv'].isna()]
 
         # set out conditions
         cond = (bin_df['iv']>=self.min_iv)
