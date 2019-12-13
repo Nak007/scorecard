@@ -41,26 +41,25 @@ class batch_evaluation:
         ----------
 
         **woe_binning**
-        \t n_step : (int), number of steps (percentile) given defined range (min, max)
-        \t method : (str,list) method to use for determining WOEs (default=['iv','entropy','gini','chi','mono'])
-        \t - string method name
-        \t - list of method names e.g. ['iv', 'gini']
-        \t min_pct : (float), minimum percentage of sample in each BIN
-        \t chi_alpha : (float), significant level of Chi-sqaure
-        \t chi_intv : (int), starting sub-intervals of Chi-merge
-        \t p_value : (float), significant level of Student's T-Test
-        \t ttest_intv : (int), starting sub-intervals of "Monotonic-Optimal-Binning" technique
-        \t min_obs : (float), minimum percentage of sample in each BIN (used in 'mono')
-        \t min_event : (float), minimum percentage of event compared to its total in each BIN
+        \t n_step : (int), number of steps (percentile) given defined range (min, max), (default=20)
+        \t method : (str,list) method to use for determining WOEs
+        \t          - method name (str) e.g. 'chi'
+        \t          - list of method names e.g. ['iv', 'gini']
+        \t          - default=['iv','entropy','gini','chi','mono']
+        \t min_pct : (float), minimum percentage of sample in each BIN (default=0.05)
+        \t chi_alpha : (float), significant level of Chi-sqaure (default=0.05)
+        \t chi_intv : (int), starting sub-intervals of Chi-merge (default=15)
+        \t p_value : (float), significant level of Student's T-Test (default=0.05)
+        \t ttest_intv : (int), starting sub-intervals of "Monotonic-Optimal-Binning" technique (default=15)
+        \t min_obs : (float), minimum percentage of sample in each BIN (used in 'mono'), (default=0.05)
+        \t min_event : (float), minimum percentage of event compared to its total in each BIN (default=0.05)
 
         **Selection criteria**
         \t iv_imp : (float), IV importance weight (max=1, default=0.5)
         \t min_iv : (float), minimum acceptable IV (default=0.1)
         \t min_corr : (float), minimum acceptable absolute correlation (default=0.5)
-        \t max_tol : (float), maximum tolerance of difference between model and 
-        \t log(event/non-event) intercepts (default=0.01)
-        \t bin_df : (dataframe), list of hyper parameters and goodness-of-fit or 
-        \t binning indicators from each iteration (default=None)
+        \t max_tol : (float), maximum tolerance of difference between model and log(event/non-event) intercepts (default=0.01)
+        \t bin_df : (dataframe), list of hyper parameters and goodness-of-fit or binning indicators from each iteration (default=None)
         \t res_df : (dataframe), list of binning outputs (default=None)
         '''
         # keyword arguments (excluding 'method')
