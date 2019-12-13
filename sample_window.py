@@ -279,7 +279,7 @@ class waterfall:
         self.va = ['top','bottom']
         self.pct = ['-{:.2f}%','+{:.2f}%']
         self.amt = ['(-{:,.0f})','(+{:,.0f})']
-        self.b_kwargs = dict(width=0.6, color='#fed434', alpha=0.6, edgecolor='#b9b9b9', hatch='////', lw=1)
+        self.b_kwargs = dict(width=0.6, color='#fed434', alpha=0.6, edgecolor='#718093', hatch='////', lw=1)
         self.l_kwargs = dict(fontsize=10, framealpha=0, edgecolor='none')
 
     def __waterfall_df(self, a):
