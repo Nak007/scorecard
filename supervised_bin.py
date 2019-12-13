@@ -236,7 +236,7 @@ class batch_evaluation:
         self.w_f.value = pct*100
         self.w_t.value = '({:.0f}%) '.format(pct*100) + label 
         time.sleep(0.1)
-        if pct_val == 1: 
+        if pct == 1: 
             self.w_f.bar_style = 'success'
             self.w_t.value = '(100%) Complete'
       
