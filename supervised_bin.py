@@ -387,7 +387,7 @@ class woe_binning:
                 min_obs = min(n_obs, x1.size, x2.size)
                 
                 # percent distribution of events
-                pct_event = nonan_y[interval & (nonan_y==1)].size/n_target
+                pct_event = nonan_y[interval & (nonan_y==1)].size/max(n_target,1)
 
                 if min_obs<=1: p_values[n] = 2
                 elif (n_obs<self.min_obs)|(pct_event<self.min_event): p_values[n] = 1
