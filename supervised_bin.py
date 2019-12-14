@@ -618,7 +618,7 @@ class woe_binning:
         axis.set_ylabel(r'$Trend = WOE_{right}-WOE_{left}$')
         axis.set_xlabel('Cut-off')
         axis.set_xticks(x_ticks)
-        axis.set_xticklabels(x_ticklbs)
+        axis.set_xticklabels(x_ticklbs, rotation=45)
         axis.set_xlim(-0.5, len(x_ticks)-0.5)
         title = 'WOE comparison - Variable: %s \n ( min=%.2f, max=%.2f, Bin=%d )' 
         axis.set_title(title % (self.X_name, r_min, r_max, len(x_ticks)))
