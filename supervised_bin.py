@@ -9,8 +9,6 @@ from IPython.display import HTML, display
 class batch_evaluation:
 
     '''
-    12-12-2019
-    
     Method
     ------
 
@@ -575,10 +573,10 @@ class woe_binning:
         # Create tick and its labels
         cutoffs = self.woe_df['cutoffs'].values
         x_ticks = np.arange(self.woe_df.shape[0])
-        x_ticklbs = np.full(len(x_ticks),0.0)
+        x_ticklbs = np.full(len(x_ticks),None)
         for n, cutoff in enumerate(cutoffs):
-            if n > 1000: x_ticklbs[n] = '{:.1e}'.format(cutoff)
-            else: x_ticklbs[n] = str('{:.' + str(bin_decimal) + 'f}').format(cutoff)
+            if cutoff > 1000: x_ticklbs[n] = str('{:.' + str(bin_decimal) + 'e}').format(cutoff)
+            else: x_ticklbs[n] = str('{:,.' + str(bin_decimal) + 'f}').format(cutoff)
 
         # plot
         fig, axis = plt.subplots(1,1,figsize=(max(len(cutoffs)*0.55,6),4))
@@ -595,7 +593,7 @@ class woe_binning:
             axis.text(dn_index[0], 0, 'max', va='bottom', ha='center')
 
         # plot WOEs
-        kwargs = dict(alpha=0.8, width=0.7, align='center', hatch='////', edgecolor='#4b4b4b', lw=1)
+        kwargs = dict(alpha=0.8, width=0.6, align='center', hatch='////', edgecolor='#4b4b4b', lw=0.8)
         bar_1 = axis.bar(x_ticks, up_y, color='#32ff7e', label='up trend', **kwargs)
         bar_2 = axis.bar(x_ticks, dn_y, color='#ff4d4d', label='down trend', **kwargs)
 
@@ -620,8 +618,11 @@ class woe_binning:
         axis.set_xticks(x_ticks)
         axis.set_xticklabels(x_ticklbs, rotation=45)
         axis.set_xlim(-0.5, len(x_ticks)-0.5)
-        title = 'WOE comparison - Variable: %s \n ( min=%.2f, max=%.2f, Bin=%d )' 
-        axis.set_title(title % (self.X_name, r_min, r_max, len(x_ticks)))
+        
+        title = tuple((r'$\bf{WOE}$ $\bf{comparison}$ : %s' % self.X_name, 
+                       r'( $\bf{min}$=%s, $\bf{max}$=%s, $\bf{Bin}$=%d )' % 
+                       ('{:,.2f}'.format(r_min), '{:,.2f}'.format(r_max), len(x_ticks))))
+        axis.set_title('\n'.join(title))
         ylim = axis.get_ylim()
         yinv = float(abs(np.diff(axis.get_yticks()))[0])
         axis.set_ylim(ylim[0]-0.5, ylim[1]+0.5)
@@ -632,7 +633,7 @@ class woe_binning:
         # change label on secondary y-axis
         y_ticklbs = list()
         for n, value in enumerate(tw_axis.get_yticks()):
-            y_ticklbs.append('{:.2e}'.format(value))
+            y_ticklbs.append('{:.1e}'.format(value))
         tw_axis.set_yticklabels(y_ticklbs)
 
         if fname is not None: plt.savefig(fname)
