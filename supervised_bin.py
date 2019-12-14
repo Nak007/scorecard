@@ -213,8 +213,8 @@ class batch_evaluation:
                 for m in n_round:
                     b = a.loc[(a['round']==m)]
                     woe_df = self.res_df.loc[(self.res_df['round']==m)]
-                    print('method: %s (round=%d)' % (b['method'][0], m))
-                    plot_woe().plot(woe_df, b['variable'][0], rho=b['correlation'][0]) 
+                    print('method: %s (round=%d)' % (str(b['method'].values), m))
+                    plot_woe().plot(woe_df, b['variable'].values, rho=b['correlation'].values) 
             else: print('[Empty list]: %s' % n)
   
     def __widgets(self):
