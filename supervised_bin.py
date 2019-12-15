@@ -988,6 +988,7 @@ class plot_woe:
         # Set X tick label format (number)
         self.xticks = np.arange(len(self.df))
         ticklabels = np.empty(len(self.df), dtype='|U100')
+        self.rotation = 0
 
         # Create tick label array
         a = self.df['min'].values
@@ -995,14 +996,19 @@ class plot_woe:
         for n, b in enumerate(a):
             ticklabels[n] = b
             if n > 0:
-                if abs(b) < 1000: ticklabels[n] = '{:.1f}'.format(b)
-                else: ticklabels[n] = '{:.1e}'.format(b)
+                if abs(b) >= 1000: 
+                    ticklabels[n] = '{:.1e}'.format(b)
+                    self.rotation = 45
+                else: ticklabels[n] = '{:.1f}'.format(b)
         self.xticklabels = ticklabels    
 
     def __woe_plot(self, axis):
-
-        iv = 'IV = %.4f (%s)' % (self.iv, self.__iv_predict())
-        label = 'Variable: %s \n ' % self.var_name
+        
+        t  = list()
+        t.append(r'$\bf{Variable}$ : %s' % str(self.var_name))
+        t.append(r'$\bf{IV}$ = %.4f (%s)' % (self.iv, self.__iv_predict()))
+        t.append(r'$\rho_{data}$ = %.2f $\rho_{\Delta bin}$ = %.2f' % (self.rho, self.bin_rho))
+        t = '\n'.join(tuple(t))
 
         # extract positive and negative woes  
         Pos_Y = [max(n,0) for n in self.df['woe'].values]
@@ -1011,7 +1017,7 @@ class plot_woe:
         # plot woes
         axis.bar(self.xticks, Pos_Y, **self.pos_kwargs)
         axis.bar(self.xticks, Neg_Y, **self.neg_kwargs)
-
+        
         # woe values (text)
         for n, s in enumerate(Pos_Y):
             if s>0: axis.text(n, -0.05, '%0.2f' % s, **self.p_woe_kwargs)
@@ -1022,8 +1028,8 @@ class plot_woe:
         axis.set_ylabel('Weight of Evidence (WOE)')
         axis.set_xlabel(r'$BIN_{n} = BIN_{n} \leq X < BIN_{n+1}$')
         axis.set_xticks(self.xticks)
-        axis.set_xticklabels(self.xticklabels, fontsize=10, rotation=45)
-        axis.set_title(label + iv)
+        axis.set_xticklabels(self.xticklabels, fontsize=10, rotation=self.rotation)
+        axis.set_title(t)
         yticks = axis.get_yticks()
         diff = max(np.diff(yticks))
         n_low, n_high = min(yticks)-diff, max(yticks)+diff
@@ -1031,11 +1037,6 @@ class plot_woe:
         axis.legend(**self.lg_kwargs)
         axis.grid(False)
 
-        bbox = dict(boxstyle='round', facecolor='white',edgecolor=None, alpha=0)
-        kwargs = dict(transform=axis.transAxes, fontsize=12, va='center', bbox=bbox)
-        s = r'$\rho_{data}$ = %.2f $\rho_{\Delta bin}$ = %.2f'
-        axis.text(0.05, 0.05, s % (self.rho, self.bin_rho), **kwargs)
-    
     def __dist_plot(self, axis):
 
         label = 'Variable: %s \n samples (%%) in each BIN' % self.var_name
@@ -1056,7 +1057,7 @@ class plot_woe:
         axis.set_ylabel('Percentage (%)')
         axis.set_xlabel(r'$BIN_{n} = BIN_{n} \leq X < BIN_{n+1}$')
         axis.set_xticks(self.xticks)
-        axis.set_xticklabels(self.xticklabels, fontsize=10, rotation=45)
+        axis.set_xticklabels(self.xticklabels, fontsize=10, rotation=self.rotation)
         axis.set_title(label)
         yticks = axis.get_yticks()
         diff = max(np.diff(yticks))
