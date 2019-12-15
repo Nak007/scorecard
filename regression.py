@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
-
 import pandas as pd, numpy as np, math, time
 import matplotlib.pylab as plt
 from scipy.stats import spearmanr, pearsonr
@@ -11,10 +5,6 @@ from IPython.display import HTML, display
 import ipywidgets as widgets
 import statsmodels.discrete.discrete_model as sm
 from sklearn.metrics import accuracy_score
-
-
-# In[4]:
-
 
 # **_class_** : k_fold
 
@@ -82,10 +72,6 @@ class k_fold:
             if self.accuracy < m_accuracy:
                 self.accuracy = m_accuracy
                 self.best_model = self.model
-
-
-# In[7]:
-
 
 # **_class_** : stepwise_logistics
 
@@ -339,10 +325,6 @@ class stepwise_logistics:
     def __update_widget(self, label):
         self.w_t.value = label; time.sleep(0.1)
 
-
-# In[2]:
-
-
 # **_class_** : evaluate_classifier
 
 class evaluate_classifier:
@@ -388,7 +370,7 @@ class evaluate_classifier:
         \t n_class : int, class label={0,1}
         \t fname : str or PathLike or file-like object (see pyplot.savefig)
         '''
-        self.y, self.y_proba = y, y_proba
+        self.y, self.y_proba = np.array(y), np.array(y_proba)
         self.n_class = n_class
         print('class (%d) is a target (event)' % self.n_class)
         # find max probability among classes (by row)
@@ -427,7 +409,7 @@ class evaluate_classifier:
         ch_lb = r'Lift Chart ($10^{th}$ to $100^{th}$ decile)'
         self._lift(axis[5], cum_event, cum_pop, ch_lb, -1)
 
-        # (7) Lift chart by decile          
+        # (7) Lift chart by decile      
         self._lift(axis[6], pct_event, pct_pop, 'Lift Chart @ decile', -1, True)  
 
         # (8) 1st to 10th decile
@@ -481,23 +463,21 @@ class evaluate_classifier:
 
         axis.matshow(confusion, cmap=plt.cm.hot, alpha=0.2)
         kwargs = dict(va='center', ha='center', fontsize=10)
-        label = 'True Positive \n %d (%d%%)' % (tp, 100*self.tp)
+        label = 'True Positive \n %s (%d%%)' % ('{:,.0f}'.format(tp), 100*self.tp)
         axis.text(0,0, s=label, **kwargs)
-        label = 'False Positive \n %d (%d%%)' % (fp,100*self.fp)
-        axis.text(0,1, s=label, **kwargs)
-        label = 'False Negative \n %d (%d%%)' % (fn,100*self.fn)
+        label = 'False Positive \n %s (%d%%)' % ('{:,.0f}'.format(fp),100*self.fp)
         axis.text(1,0, s=label, **kwargs)
-        label = 'True Negative \n %d (%d%%)' % (tn,100*self.tn)
+        label = 'False Negative \n %s (%d%%)' % ('{:,.0f}'.format(fn),100*self.fn)
+        axis.text(0,1, s=label, **kwargs)
+        label = 'True Negative \n %s (%d%%)' % ('{:,.0f}'.format(tn),100*self.tn)
         axis.text(1,1, s=label, **kwargs)
-        axis.set_yticklabels([])
-        axis.set_xticklabels([])
-        axis.set_xticks([0.5])
-        axis.set_yticks([0.5])
-        axis.set_title(r'$cutoff_{ks}$ = %0.1f%%' % (threshold*100)) 
-        axis.set_xlabel('Predicted label')
-        axis.set_ylabel('Actual label')
+        axis.set_xticks([0,1])
+        axis.set_yticks([0,1])
+        axis.set_yticklabels(['True','False'], rotation=90)
+        axis.set_xticklabels(['True','False'])
+        axis.set_ylabel(r'Predict ($cutoff_{ks}$ = %0.1f%%)' % (threshold*100))
+        axis.set_xlabel('Actual')
         axis.set_facecolor('white')
-        axis.grid(True, lw=1, ls='--', color='k')
 
     def _precision_recall(self, axis):
 
@@ -621,7 +601,11 @@ class evaluate_classifier:
         return bins, xticks, xticklabels
   
     def _gain(self, axis, cum_event, cum_pop):
-
+        
+        '''
+        Gain chart plot the cumulative of number of targets (events) 
+        against the cumulative number of samples 
+        '''
         # multiply with 100 (convert % to integer)
         cum_event = [0] + [int(n*100) for n in cum_event]
         cum_pop = [0] + [round(int(n*100),-1) for n in cum_pop]
@@ -637,13 +621,19 @@ class evaluate_classifier:
         axis.set_xticklabels(cum_pop)
         axis.legend(**self.lb_kwargs)
         axis.set_title('Gain Chart')
-        axis.set_xlabel('% of datasets (decile)')
+        axis.set_xlabel('Cumulative % of datasets')
         axis.set_ylabel('Cumulative % of events')
         axis.set_facecolor('white')
         axis.grid(False)
 
     def _lift(self, axis, event, pop, label='Lift Chart', digit=0, cum=False):
-
+        
+        ''' 
+        Lift measures how much better one can expect to do with 
+        the predictive model comparing without a model. It is the ratio 
+        of gain % to the random expectation % at a given decile level. 
+        The random expectation at the xth decile is x%
+        '''
         # caluclate lift
         lift = [m/n for (m,n) in zip(event,pop)]
         if cum==True: pop = np.cumsum(pop)
@@ -666,31 +656,26 @@ class evaluate_classifier:
   
     def __cumulative(self, r_min=0, r_max=100):
 
-        ''' 
-        Gain at a given decile level is the ratio of cumulative 
-        number of targets (events) up to that decile to the total 
-        number of targets (events) in the entire data set
-
-        Lift measures how much better one can expect to do with 
-        the predictive model comparing without a model. It is the ratio 
-        of gain % to the random expectation % at a given decile level. 
-        The random expectation at the xth decile is x%
-        '''
-        r_prob = self.y_proba[:, self.n_class]
-        r_incr = (r_max-r_min)/10
-        bin_pct = [(r_min + r_incr*n) for n in range(11)]
-        bins = [np.percentile(r_prob, n) for n in bin_pct]
-        event = self.y_proba[self.y_true==self.n_class][:,self.n_class]
-        n_event, _ = np.histogram(event, bins=bins)
-        n_pop, _ = np.histogram(r_prob, bins=bins)
+        y_proba = np.array(self.y_proba[:,self.n_class]).reshape(-1,1)
+        y_true = np.array(self.y_true).reshape(-1,1).copy()
+        columns = ['y_proba','y_true']
+        y = pd.DataFrame(np.hstack((y_proba, y_true)),columns=columns)
+        y = y.sort_values(by=columns).reset_index(drop=True)
+        event, sample, index = (y['y_true']==1).sum(), len(y), range(len(y))
+        bin_pct = [(r_min + (r_max-r_min)/10*n) for n in range(11)]
+        bin_index = [int(np.percentile(index,n)) for n in bin_pct]
+        n_event, n_sample = list(), list()
+        for n,m in zip(bin_index[:-1],bin_index[1:]):
+            b = y.iloc[n:m+1,:]
+            n_sample.append(b.shape[0])
+            n_event.append(b.loc[b['y_true']==1].shape[0])
 
         # Cumulative number of events and populations
-        pct_event = n_event[::-1]/len(event)
-        pct_pop = n_pop[::-1]/len(r_prob)
-        cum_event = np.cumsum(pct_event).tolist()
-        cum_pop = np.cumsum(pct_pop).tolist()
-
-        return cum_event, cum_pop, pct_event, pct_pop
+        p_event = np.array(n_event)[::-1]/event
+        p_sample = np.array(n_sample)[::-1]/sample
+        c_event = np.cumsum(p_event).tolist()
+        c_sample = np.cumsum(p_sample).tolist()
+        return c_event, c_sample, p_event, p_sample
 
     def __summary(self):
 
@@ -701,11 +686,7 @@ class evaluate_classifier:
                       self.precision, self.roc_auc, self.gini, self.ks, 
                       self.ks_cutoff]).reshape(1,-1)
         self.df = pd.DataFrame(a,columns=columns)
-
-
-# In[1]:
-
-
+        
 # **_class_** : points_allocation
 
 class points_allocation:
@@ -956,5 +937,3 @@ class points_allocation:
                 if b < 1000: ticklabels[n] = '{:.1f}'.format(b)
                 else: ticklabels[n] = '{:.1e}'.format(b)
         return ticklabels
-
-
