@@ -995,7 +995,7 @@ class plot_woe:
         for n, b in enumerate(a):
             ticklabels[n] = b
             if n > 0:
-                if b < 1000: ticklabels[n] = '{:.1f}'.format(b)
+                if abs(b) < 1000: ticklabels[n] = '{:.1f}'.format(b)
                 else: ticklabels[n] = '{:.1e}'.format(b)
         self.xticklabels = ticklabels    
 
