@@ -265,65 +265,69 @@ class waterfall:
     \t - self.waterfall : (dataframe), data table used in making chart
     \t - plot waterfall chart
     '''
-    def __init__(self, c_inc='#f10606', c_dec='#0ea854', lb_inc='Increase', lb_neg='Decrease'):
+    def __init__(self, c_inc='#1B9CFC', c_dec='#FC427B', c_tot='#FEA47F', c_edge='#718093',
+                 lb_inc='Increase', lb_neg='Decrease', num_dp=0, pct_dp=0, sep='\n'):
 
         '''
         Parameters
         ----------
         
-        \t c_inc, c_dec : (hex), color of positive and negative values
-        \t lb_inc, lb_neg : (str), label of positive and negative values
+        \t c_inc : (hex), color of incremental increase bar (default='#1B9CFC')
+        \t c_dec : (hex), color of incremental decrease bar (default='#FC427B')
+        \t c_tot : (hex), color of sub-total and total bar (default='#FEA47F')
+        \t c_edge : (hex), color of all bar edge (default='#718093')
+        \t lb_inc : (str), label of incremental increase bar (default='Increase')
+        \t lb_neg : (str), label of incremental decrease bar (default='decrease')
+        \t num_dp : (int), number of decimal places for displayed number (default=0) 
+        \t pct_dp : (int), number of decimal places for displayed percentage (default=0)
+        \t sep : (str), string separator for x-label for sub-total and total bars (default='\n')
         '''
         self.init_cols = ['item', 'amount']
-        self.color, self.labels = [c_inc, c_dec], [lb_neg, lb_inc]
+        self.color, self.labels = [c_dec, c_inc, c_tot, c_edge], [lb_neg, lb_inc]
         self.va = ['top','bottom']
-        self.pct = ['-{:.2f}%','+{:.2f}%']
-        self.amt = ['(-{:,.0f})','(+{:,.0f})']
-        self.b_kwargs = dict(width=0.6, color='#fed434', alpha=0.6, edgecolor='#718093', hatch='////', lw=1)
+        self.pct = '({:.' + str(pct_dp) + 'f}%)'
+        self.amt = ['-{:,.' + str(num_dp) + 'f}','{:,.' + str(num_dp) + 'f}']
+        self.b_kwargs = dict(width=0.5, alpha=0.8, edgecolor=c_edge, lw=1)
         self.l_kwargs = dict(fontsize=10, framealpha=0, edgecolor='none')
-
+    
     def __waterfall_df(self, a):
-
-        '''
-        Parameters
-        ----------
         
-        a : (dataframe)
-        ==========================
-        |   |  item   |  amount  |
-        --------------------------
-        | 0 | item_01 |  10,000  |
-        | 1 | item_02 |  -8,000  |
-        ==========================
-        - item : (str), name of items
-        - amount : (float), amount of items
+        '''
+        Construct a table for waterfall chart
         '''
         a['pos'] = 0; a.loc[a['amount']>=0,'pos'] = 1
         a['neg'] = (~a['pos'].astype(bool)).astype(int)
         a['bottom'] = np.cumsum(a['amount'])-(a['amount']*a['pos'])
-        a['height'], total = abs(a['amount']), a['amount'].sum()
-        if total>=0: s = {'item':'total','bottom':0,'height':total,'pos':1,'neg':0}
-        else: s = {'item':'total','bottom':total,'height':-total,'pos':0,'neg':1 }
-        a = a.append(s, ignore_index=True)
-        a['pct'] = a['height']/float(a.iloc[0,5])*100
+        total =a['amount'].sum()
+        tot = {'item':self.lb_tot,'amount':total,'sub':1,'pos':int(total>=0),'neg':int(total<0)}
+        a = a.append(tot, ignore_index=True).fillna(0)
+        a['height'] = abs(a['amount'])
+        a['cumsum'] = np.cumsum(a['amount'].fillna(0))
+        a.loc[len(a)-1,'cumsum'] = total
+        a.loc[(a['sub']==1)&(a['cumsum']<0),'bottom'] = a['cumsum']
+        a.loc[(a['sub']==1)&(a['cumsum']>=0),'bottom'] = 0
+        a.loc[(a['sub']==1),'height'] = abs(a['cumsum'])
+        a['pct'] = a['height']/float(a.loc[0,'height'])*100
         return a
 
     def plot(self, a, width=6, height=4, rotation=0, n_pts=0.1, y_label='Amount', 
-             title='Waterfall Chart', loc='best', fname=None):
+             title='Waterfall Chart', loc='best', lb_tot='Total',
+             show_delta=True, show_pct=True, fname=None):
 
         '''
         Parameters
         ----------
 
         \t a : (dataframe)
-        \t ===========================
-        \t |   |  item    |  amount  |
-        \t --------------------------
-        \t | 0 | item_01  |  10,000  |
-        \t | 1 | item_02  |  -8,000  |
-        \t ===========================
+        \t =================================
+        \t |   |  item    |  amount  | sub |
+        \t ---------------------------------
+        \t | 0 | item_01  |  10,000  |  1  |
+        \t | 1 | item_02  |  -8,000  |  0  |
+        \t =================================
         \t - item : (str), name of items
         \t - amount : (float), amount of items
+        \t - sub : (int), when 'sub' equals to 1, item is recognized as subtotal.
         
         \t width, height : (float), width and height of plot in inches (default=(6,4))
         \t rotation : (int), rotation angle of x-label (default=0)
@@ -331,32 +335,53 @@ class waterfall:
         \t y_label : (str), label on y-axis (defualt='Amount')
         \t title : (str), title of chart (default='Waterfall Chart')
         \t loc : (str, float), location of the legend (see matplotlib.axes.legend)
+        \t lb_tot : (str), x-label for total bar (default='Total')
+        \t show_delta : (bool), when True, change is displayed (default=True)
+        \t show_pct : (bool), when True, change in percentage is displayed (default=True)
+        \t fname : str or PathLike or file-like object (see ply.savefig)
         '''
         # transform data
-        self.waterfall = self.__waterfall_df(a)
-        a = self.waterfall.copy()
+        self.lb_tot = lb_tot
+        self.waterfall = self.__waterfall_df(a.copy()); a = self.waterfall.copy()
 
         # plot waterfall
         fig, axis = plt.subplots(1,1, figsize=(width,height))
-        axis.axhline(0, lw=1, color='k')
-        x_ticks = range(len(a))
+        axis.axhline(0, lw=1, ls='--', color=self.color[3]); x_ticks = range(len(a)); 
+        bar = np.full(2,None)
         for m,n in enumerate(['neg','pos']):
-            self.b_kwargs.update(dict(bottom=a['bottom']*a[n], label=self.labels[m]), color=self.color[m])
-            axis.bar(x_ticks, a['height']*a[n], **self.b_kwargs)
-
+            self.b_kwargs.update(dict(bottom=a['bottom']*a[n]), color=self.color[m])        
+            flag = ((a['sub']==0) & (a[n]==1)).astype(bool)
+            y = a['height'].copy(); y[flag==False] = np.nan
+            bar[m] = axis.bar(x_ticks, y, **self.b_kwargs)
+        
+        # sub total and total bars
+        incr = (a['sub']==1).astype(bool); incr[incr==False] = np.nan
+        self.b_kwargs.update(dict(bottom=a['bottom']), color=self.color[2])
+        axis.bar(x_ticks, a['height']*incr,**self.b_kwargs)
+        
         # determine tick interval (assigned automatically)
         y_ticks = axis.get_yticks()  
         const = max(abs(np.diff(y_ticks)))
-
+        
         # annotation
         gap = [-n_pts*const,n_pts*const]
-        for n, pos in enumerate(a['pos']):
+        for n, pos in enumerate(a['pos'].astype(int)):
             if pos==1: y = a.loc[n,['bottom','height']].sum()
             else: y = a.loc[n,'bottom']
-            kwargs = dict(va=self.va[pos], color=self.color[pos], ha='center', fontsize=9)
-            s = tuple((self.pct[pos].format(a.loc[n,'pct']), self.amt[pos].format(a.loc[n,'height'])))
-            axis.text(n, y + gap[pos], '\n'.join(s), **kwargs)
-
+            if a.loc[n,'sub']==0: 
+                kwargs = dict(va=self.va[pos], color=self.color[pos], ha='center', fontsize=9)
+            else: kwargs = dict(va=self.va[pos], color='grey', ha='center', fontsize=9)
+            chg = ''; pct = ''
+            if show_delta: chg = r'$\Delta$%s' % self.amt[pos].format(a.loc[n,'height'])
+            if show_pct: pct = self.pct.format(a.loc[n,'pct'])
+            s = ' '.join(tuple((chg,pct)))
+            total = r'$\bf{%s}$' % self.amt[1].format(a.loc[n,'cumsum'])
+            if len(s) > 0: total = total + '\n' + s
+            axis.text(n, y + gap[pos], total, **kwargs)
+        
+        for n,value in enumerate(a['cumsum'][:-1]):
+            axis.plot([ n-0.25, (n+1)+0.25],[value,value],lw=1,color=self.color[3])
+        
         # set y-axis
         ylim = axis.get_ylim()
         axis.set_ylim(ylim[0]-const,ylim[1]+const)
@@ -367,13 +392,34 @@ class waterfall:
         # set x-axis
         axis.set_xticks(x_ticks)
         axis.set_xlim(-0.5,len(x_ticks)-0.5)
-        x_labels = [n for n in a['item']]
+        def bold_font(n):
+            return '\n'.join(tuple([r'$\bf{%s}$' % c for c in n.split(' ')]))
+        x_labels = [item if m==0 else bold_font(item) for item,m in zip(a['item'],a['sub'])]
         axis.set_xticklabels(x_labels, fontsize=10, rotation=rotation)
+        
+        # set legend and title
         self.l_kwargs.update(dict(loc=loc))
-        axis.legend(**self.l_kwargs)
+        axis.legend(bar , self.labels,**self.l_kwargs)
         axis.set_title(title, fontsize=12)
         axis.grid(False)
 
         plt.tight_layout()
         if fname is not None: plt.savefig(fname)
         plt.show()
+    
+    def example(self):
+        
+        '''
+        Example of Innovative Product PCL. income statement
+        '''
+        a = {'item':['Sales','COGS','Other\nRevenue','Gross Profit','SG&A', 'DP&A', 'EBIT',
+             'Interest\nRevenue', 'Interest\nExpense', 'Extra.\nitems', 'EBT', 'Tax\n(35%)'],
+             'amount':[50000,-19000,9000,0,-15000,-5000,0,19000,-22000,9000,0,-8365], 
+             'sub':[1,0,0,1,0,0,1,0,0,0,1,0]}
+        a = pd.DataFrame(a)
+        title = '\n'.join(tuple((r'$\bf{Company}$ : Innovative Product PCL.', r'$\bf{Income Statement}$',
+                                 'For Year Ending December 31, 2019')))
+        kwargs= dict(width=10, height=4.5, rotation=0,  y_label=r'Amount ($\bf{Million}$ $\bf{Baht}$)',
+                     title=title, loc='upper right', lb_tot='Net Income', show_pct=True, show_delta=False)
+        model = self.plot(a, **kwargs)
+        return a
