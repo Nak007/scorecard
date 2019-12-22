@@ -37,7 +37,7 @@ class vintage_analysis:
         | 0 | YX13KX |    1    | 31JAN2017 |  0  |
         | 1 | OX123C |    1    | 31JAN2017 |  0  |
         ==========================================
-        - cif_no : (str), 12-digit integer
+        - cif_no : (int), 12-digit integer
         - max_dpd : (int), maximum dpd within a month
         - mdata : (str), date of record (format=DDMMYYYY)
         - mob : (int): Month-on-Book
@@ -264,8 +264,10 @@ class waterfall:
     \t **Return**
     \t - self.waterfall : (dataframe), data table used in making chart
     \t - plot waterfall chart
+    
+    \t self.example
     '''
-    def __init__(self, c_inc='#1B9CFC', c_dec='#FC427B', c_tot='#FEA47F', c_edge='#718093',
+    def __init__(self, c_inc='#1B9CFC', c_dec='#FC427B', c_tot='#8395a7', c_edge='#718093',
                  lb_inc='Increase', lb_neg='Decrease', num_dp=0, pct_dp=0, sep='\n'):
 
         '''
@@ -280,7 +282,7 @@ class waterfall:
         \t lb_neg : (str), label of incremental decrease bar (default='decrease')
         \t num_dp : (int), number of decimal places for displayed number (default=0) 
         \t pct_dp : (int), number of decimal places for displayed percentage (default=0)
-        \t sep : (str), string separator for x-label for sub-total and total bars (default='\n')
+        \t sep : (str), string separator for sub-total and total x-labels (default='\n')
         '''
         self.init_cols = ['item', 'amount']
         self.color, self.labels = [c_dec, c_inc, c_tot, c_edge], [lb_neg, lb_inc]
@@ -310,9 +312,8 @@ class waterfall:
         a['pct'] = a['height']/float(a.loc[0,'height'])*100
         return a
 
-    def plot(self, a, width=6, height=4, rotation=0, n_pts=0.1, y_label='Amount', 
-             title='Waterfall Chart', loc='best', lb_tot='Total',
-             show_delta=True, show_pct=True, fname=None):
+    def plot(self, a, width=6, height=4, rotation=0, n_pts=0.1, y_label='Amount', title='Waterfall Chart', 
+             loc='best', lb_tot='Total', show_delta=True, show_pct=True, fname=None):
 
         '''
         Parameters
@@ -410,16 +411,34 @@ class waterfall:
     def example(self):
         
         '''
-        Example of Innovative Product PCL. income statement
+        Example
+        -------
+        
+        Income Statement of Innovative Product PCL.
+        For Year Ending December 31, 2019
+        =========================================
+        |    |       item       |  amount | sub |
+        -----------------------------------------
+        |  0 | Sales            |  50000  |  1  |
+        |  1 | COGS             | -19000  |  0  |
+        |  2 | Other Revenue    |   9000  |  0  |
+        |  3 | Gross Profit     |      0  |  1  |
+        |  4 | SG&A             | -15000  |  0  |
+        |  5 | DP&A             |  -5000  |  0  |
+        |  6 | EBIT             |      0  |  1  |
+        |  7 | Interest Revenue |  19000  |  0  |
+        |  8 | Interest Expense | -22000  |  0  |
+        |  9 | Extra. items     |   9000  |  0  |
+        | 10 | EBT              |      0  |  1  |
+        | 11 | Tax (35%)        |  -8365  |  0  |
+        =========================================
         '''
         a = {'item':['Sales','COGS','Other\nRevenue','Gross Profit','SG&A', 'DP&A', 'EBIT',
              'Interest\nRevenue', 'Interest\nExpense', 'Extra.\nitems', 'EBT', 'Tax\n(35%)'],
              'amount':[50000,-19000,9000,0,-15000,-5000,0,19000,-22000,9000,0,-8365], 
              'sub':[1,0,0,1,0,0,1,0,0,0,1,0]}
-        a = pd.DataFrame(a)
-        title = '\n'.join(tuple((r'$\bf{Company}$ : Innovative Product PCL.', r'$\bf{Income Statement}$',
+        title = '\n'.join(tuple((r'$\bf{Income}$ $\bf{Statement}$ : Innovative Product PCL.', 
                                  'For Year Ending December 31, 2019')))
-        kwargs= dict(width=10, height=4.5, rotation=0,  y_label=r'Amount ($\bf{Million}$ $\bf{Baht}$)',
-                     title=title, loc='upper right', lb_tot='Net Income', show_pct=True, show_delta=False)
-        model = self.plot(a, **kwargs)
-        return a
+        args= (pd.DataFrame(a) , 10, 4.5, 0, 0.1,  r'Amount ($\bf{Million}$ $\bf{Baht}$)', title, 
+               'upper right', 'Net Income', True, False)
+        model = self.plot(*args)
