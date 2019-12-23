@@ -15,17 +15,34 @@ class batch_evaluation:
     \t (1) self.fit( y, X)
     \t **Return:** 
     \t - self.bin_df : (dataframe), table of hyper parameters and goodness-of-fit 
-    \t   or binning indicators from each iteration. There are 9 columns, 
-    \t   which are 'round', 'method', 'variable', 'min_pct', 'step', 'model_bin', 
-    \t   'IV', 'correlation', and 'intercept'
-    \t - self.res_df : (dataframe), table of all binning outputs. Table is conprised of 
-    \t   'round', 'variable', 'min', 'max', 'Bin', 'Non_events', 'Events', 
-    \t   'pct_nonevents', 'pct_events', 'WOE', and 'IV'
+    \t =================================================================
+    \t | 0 | round | method | [var] | [bin] |   iv   | [corr] | [inpt] |
+    \t -----------------------------------------------------------------
+    \t | 0 |   1   |  gini  |  xxx  |   6   | 0.3807 | 0.8667 | 0.0360 |
+    \t | 1 |   2   |  mono  |  xxx  |   9   | 0.3821 | 0.8776 | 0.0360 |
+    \t | 2 |   3   |   chi  |  yyy  |   5   | 0.3662 | 0.8907 | 0.0357 |
+    \t =================================================================
+    \t Note: [var] = 'variable', [bin] = 'model_bin', [corr] = 'correlation', and [inpt] = 'intercept'
+    
+    \t - self.res_df : (dataframe)
+    \t =========================================================================================
+    \t |   | round | [var] | min | max | bin | [ne] | [e] | [pne]  |  [pe]  |   woe   |   iv   | 
+    \t -----------------------------------------------------------------------------------------
+    \t | 0 |   1   |  xxx  | nan | nan |  0  |    0 |   0 | 0.0000 | 0.0000 | -5.7228 | 0.0000 |
+    \t | 1 |   1   |  xxx  |  0  |  1  |  1  |  651 |   8 | 0.0519 | 0.1951 | -1.3237 | 0.1895 |
+    \t | 2 |   1   |  xxx  |  1  |  2  |  2  | 1971 |  11 | 0.1572 | 0.2683 | -0.5344 | 0.0594 |
+    \t | 3 |   1   |  xxx  |  2  |  3  |  3  | 2992 |   7 | 0.2387 | 0.1707 |  0.3350 | 0.0228 |
+    \t | 4 |   1   |  xxx  |  3  |  4  |  4  | 5318 |  12 | 0.4242 | 0.2927 |  0.3712 | 0.0488 |
+    \t | 5 |   1   |  xxx  |  4  |  5  |  5  |  641 |   2 | 0.0511 | 0.0488 |  0.0471 | 0.0001 |
+    \t | 6 |   1   |  xxx  |  5  |  6  |  6  |  963 |   1 | 0.0768 | 0.0244 |  1.1473 | 0.0601 |
+    \t =========================================================================================
+    \t Note: [var] = 'variable', [ne] = 'Non_events', [e] = 'Events', [pne] = 'pct_nonevents', and [pe] = 'pct_events'
 
     \t (2) self.plot(column='round', value=1, adjusted=False)
     \t **Return**
-    \t - self.adj_bin_df : (dataframe)
-
+    \t - self.adj_bin_df : (dataframe), similar to self.bin_df
+    
+   
     \t (3) self.filter_out()
     \t **Return**
     \t - self.adj_bin_df : (dataframe)
@@ -57,7 +74,8 @@ class batch_evaluation:
         \t min_iv : (float), minimum acceptable IV (default=0.1)
         \t min_corr : (float), minimum acceptable absolute correlation (default=0.5)
         \t max_tol : (float), maximum tolerance of difference between model and log(event/non-event) intercepts (default=0.01)
-        \t bin_df : (dataframe), list of hyper parameters and goodness-of-fit or binning indicators from each iteration (default=None)
+        \t bin_df : (dataframe), list of hyper parameters and goodness-of-fit or binning indicators from each iteration 
+        \t          (default=None)
         \t res_df : (dataframe), list of binning outputs (default=None)
         '''
         # keyword arguments (excluding 'method')
@@ -75,8 +93,8 @@ class batch_evaluation:
 
         # list of columns 
         self.bin_cols=['round', 'method', 'variable', 'model_bin', 'IV', 'correlation', 'intercept']
-        self.res_cols=['round', 'variable', 'min', 'max', 'Bin', 'Non_events',
-                       'Events', 'pct_nonevents', 'pct_events', 'WOE', 'IV']
+        self.res_cols=['round', 'variable', 'min', 'max', 'Bin', 'Non_events', 'Events', 'pct_nonevents', 
+                       'pct_events', 'WOE', 'IV']
 
         # Set label format
         self.prog_lb = ' Variable : {var} (method = {m})'
@@ -290,34 +308,39 @@ class woe_binning:
         Parameters
         ----------
 
-        \t trend : (int), predefined trend of WOEs { 0 : downward trend, 1: upward trend, -1: allow function to determine trend (_default_)}
+        \t trend : (int), predefined trend of WOEs (default=-1)
+        \t   0 : downward trend
+        \t   1 : upward trend, 
+        \t  -1 : allow function to determine trend 
         \t n_order : (int), an order of selection
         \t n_step : (int), number of steps (percentile) given defined range (min, max)
         \t min_pct : (float) minimum percentage of sample in each BIN
-        \t mehtod : (str) method of optimization
+        \t meh tod : (str) method of optimization
         \t - 'iv' : determine the cut-off with highest value of information value
-        \t      $S_{0} = \sum_{y=0\Subset Y} 1$ and $S_{1} = S - S_{0}$
-        \t      $P(R,y) = (\sum_{y\Subset Y|R} 1)/S_{y}$ 
-        \t      where $R$ is range of $x$ given cut point, and $y \Subset$ {0, 1} or {non-event, event}
-        \t      $IV(T,S) = \sum_{i=1}^{2} (P(R,0))-P(R,1))\log(P(R,0)/P(R,1))$
-        \t      where $i$ = nth interval {1, 2}, and  $T$ = cutoff
+        \t   $S_{0} = \sum_{y=0\Subset Y} 1$ and $S_{1} = S - S_{0}$
+        \t   $P(R,y) = (\sum_{y\Subset Y|R} 1)/S_{y}$ 
+        \t   where $R$ is range of $x$ given cut point, and $y \Subset$ {0, 1} or {non-event, event}
+        \t   $IV(T,S) = \sum_{i=1}^{2} (P(R,0))-P(R,1))\log(P(R,0)/P(R,1))$
+        \t   where $i$ = nth interval {1, 2}, and  $T$ = cutoff
         \t - 'entropy' : use entropy to determine cut-off that returns the highest infomation gain
-        \t      $Ent(S_{i}) = -\sum_{j=1}^{k} P(C_{j},S_{i})\log_{2}(P(C_{j},S_{i}))$
-        \t      $E(T,S) = (S_{1}/S) Ent(S_{1}) +  (S_{2}/S) Ent(S_{2}) $
-        \t      where $k$ = number of classes in $S_{i}$, $i \Subset$ {1, 2}, $P(C_{j},S_{i})$ = probability of $C_{j}$ given $S_{i}$, 
-        \t      $T$ = cutoff, and $S = S_{1}+ S_{2}$
+        \t   $Ent(S_{i}) = -\sum_{j=1}^{k} P(C_{j},S_{i})\log_{2}(P(C_{j},S_{i}))$
+        \t   $E(T,S) = (S_{1}/S) Ent(S_{1}) +  (S_{2}/S) Ent(S_{2}) $
+        \t   where $k$ = number of classes in $S_{i}$, $i \Subset$ {1, 2}, 
+        \t   $P(C_{j},S_{i})$ = probability of $C_{j}$ given $S_{i}$, $T$ = cutoff, and $S = S_{1}+ S_{2}$
         \t - 'gini' : use gini-impurity to determine cut-off that has the least contaminated groups
-        \t      $Gini(S_{i}) = 1-\sum_{j=1}^{k} P(C_{j},S_{i})^{2}$
-        \t      $Gini(T,S) = (S_{1}/S) Gini(S_{1}) +  (S_{2}/S) Gini(S_{2}) $
-        \t      where $k$ = number of classes in $S_{i}$, $i \Subset$ {1, 2}, $P(C_{j},S_{i})$ = probability of $C_{j}$ given $S_{i}$, 
-        \t      $T$ = cutoff, and $S = S_{1}+ S_{2}$
-        \t - 'chi' : chi-merge (supervised bottom-up) Using Chi-sqaure, it tests the null hypothesis that two adjacent intervals are independent.
-        \t      If the hypothesis is confirmed the intervals are merged into a single interval, if not, they remain separated.
-        \t      $\chi^{2} = \sum_{i=1}^{m}\sum_{j=1}^{k} (A_{ij}-E_{ij})^{2}/E_{ij}$
-        \t      where $m$ = 2 (2 intervals being compared), $k$ = number of classes, 
-        \t      $A$ = actual number of samples, and $E$ = expected number of samples (independent)
-        \t - 'mono' : monotonic-optimal-binning. Using Student's t-test (two independent samples), it tests the null hypothesis that means of two 
-        \t      adjacent intervals are the same. If the hypothesis is confirmed the intervals remain separated, if not, they are merged into a single interval.
+        \t   $Gini(S_{i}) = 1-\sum_{j=1}^{k} P(C_{j},S_{i})^{2}$
+        \t   $Gini(T,S) = (S_{1}/S) Gini(S_{1}) +  (S_{2}/S) Gini(S_{2}) $
+        \t   where $k$ = number of classes in $S_{i}$, $i \Subset$ {1, 2}, $P(C_{j},S_{i})$ = probability of 
+        \t   $C_{j}$ given $S_{i}$, $T$ = cutoff, and $S = S_{1}+ S_{2}$
+        \t - 'chi' : chi-merge (supervised bottom-up) Using Chi-sqaure, it tests the null hypothesis that two adjacent 
+        \t   intervals are independent. If the hypothesis is confirmed the intervals are merged into a single interval, 
+        \t   if not, they remain separated.
+        \t   $\chi^{2} = \sum_{i=1}^{m}\sum_{j=1}^{k} (A_{ij}-E_{ij})^{2}/E_{ij}$
+        \t   where $m$ = 2 (2 intervals being compared), $k$ = number of classes, 
+        \t   $A$ = actual number of samples, and $E$ = expected number of samples (independent)
+        \t - 'mono' : monotonic-optimal-binning. Using Student's t-test (two independent samples), it tests the null hypothesis 
+        \t   that means of two adjacent intervals are the same. If the hypothesis is confirmed the intervals remain separated, 
+        \t   if not, they are merged into a single interval.
 
         \t chi_alpha : (float), significant level of Chi-sqaure
         \t chi_intv : (int), starting sub-intervals of Chi-merge
@@ -438,7 +461,7 @@ class woe_binning:
         Note: minimum number of bins is 2
         '''
         # Initialize the overall trend and cut point
-        r_min , r_max = np.nanmin(X), np.nanmax(X) + 1 
+        r_min , r_max = np.nanmin(X), np.nanmax(X) * 1.01
         cutoff, self.trend = self.__find_cutoff(y, X , r_min, r_max)
         bin_edges, n_bins = np.unique([r_min, cutoff, r_max]).tolist(), 0
 
@@ -451,7 +474,7 @@ class woe_binning:
                     if cutoff != r_min: new_bin_edges.append(cutoff)
                 bin_edges.extend(new_bin_edges)
                 bin_edges = np.unique(np.sort(bin_edges,axis=None)).tolist()          
-        else: bin_edges = [r_min, np.mean([r_min,r_max]) ,r_max+1]
+        else: bin_edges = [r_min, np.median(X[~np.isnan(X)]) ,r_max]
         self.bin_edges = bin_edges
 
     def __find_cutoff(self, y, X, r_min, r_max):
@@ -1104,8 +1127,7 @@ class evaluate_bins:
         bin_edges = np.array(bin_edges)
 
         # Array without NaN
-        nonan_X, nonan_Y = X[~np.isnan(X)], y[~np.isnan(X)]
-        nan_Y = y[np.isnan(X)]
+        nonan_X, nonan_Y, nan_Y = X[~np.isnan(X)], y[~np.isnan(X)], y[np.isnan(X)]
 
         # Return the indices of the bins to which each value in input 
         # array belongs.Range ==> bins[i-1] <= x < bins[i] when right==False, 
