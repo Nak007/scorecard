@@ -368,6 +368,8 @@ class woe_binning:
         (2) Chi-Merge (method='chi')
         (3) Monotone Optimal Binning (method='mono')
         '''
+        # Convert self.min_event to number
+        self.n_min_event = int(self.min_event*(y==1).sum())
         switcher = {'iv': 1, 'gini': 2, 'entropy': 3, 'chi': 4, 'mono': 5}
         n = switcher.get(self.method, 999) 
         if n <= 3: self.__multi_inv_discretize(y, X)
@@ -554,7 +556,7 @@ class woe_binning:
 
                     # (1) Bin should contain at least 5% observations
                     # (2) Bin should not have 0 accounts for good or bad
-                    if (self.min_pct <= min(a,b)) & (0 < min(left + right)):
+                    if (self.min_pct <= min(a,b)) & (self.n_min_event <= min(left + right)):
 
                         # Weight of Evidence
                         left_woe.append(self.__woe(left[0], left[1]))
