@@ -369,7 +369,7 @@ class woe_binning:
         (3) Monotone Optimal Binning (method='mono')
         '''
         # Convert self.min_event to number
-        self.n_min_event = int(self.min_event*(y==1).sum())
+        self.n_min_event = max(int(self.min_event*(y==1).sum()),1)
         switcher = {'iv': 1, 'gini': 2, 'entropy': 3, 'chi': 4, 'mono': 5}
         n = switcher.get(self.method, 999) 
         if n <= 3: self.__multi_inv_discretize(y, X)
