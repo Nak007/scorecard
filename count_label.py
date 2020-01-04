@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as np, pandas as pd
 
 def consec_list(a, c=1, key=None):
 
