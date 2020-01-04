@@ -165,11 +165,13 @@ def diff_dpd_cnt(a, period=[3,6,9], key=None, col_fmt='last_%dm_%dto%d_cnt'):
     period : list of integers, optional, default: [3,6,9]
     \t List of observation windows that counting (delta) will be taken place. 
     \t Counting starts from right to left and varies according to predefined
-    \t observation windows. It is noteworthy that period that is more than
+    \t observation windows. It is noteworthy that when period is more than
     \t width of given array or equals to one, is ignored.
     
     key : list, optional, default: None
-    \t List of key labels. If None, unique labels are determined from the list
+    \t List of key labels. If None, unique labels are determined from the list.
+    \t Then, those unique items will be used to form combination of keys.
+    \t e.g. labels = [0,1] ==> key = [(0,0),(0,1),(1,0),(1,1)]
     
     col_fmt : str, optional, default: 'last_%dm_%dto%d_cnt'
     \t The column format that will automatically be generated. 
@@ -179,7 +181,7 @@ def diff_dpd_cnt(a, period=[3,6,9], key=None, col_fmt='last_%dm_%dto%d_cnt'):
     Return
     ------
     
-    dataframe of shape (n_sample, n_key * n_period * n_consecutive)
+    dataframe of shape (n_sample, n_key * n_period)
     '''
     arr, columns = list(), list()
     if key is None: 
