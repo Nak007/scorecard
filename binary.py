@@ -286,7 +286,7 @@ class binary_analysis:
         return tuple([r'$\bf{s}$'.format(s=s) if ucase==False 
                       else r'$\bf{s}$'.format(s=s.upper()) for s in str(a).split(pat)])
         
-    def plot(self, var, fname=None):
+    def plot(self, var, figsize=(12,8), fname=None):
     
         '''
         Parameters
@@ -298,7 +298,7 @@ class binary_analysis:
         fname : str or PathLike or file-like object
         \t A path, or a Python file-like object (see pyplot.savefig)
         '''
-        fig = plt.figure(figsize=(12,8))
+        fig = plt.figure(figsize=figsize)
         axis = np.full(3,None)
         axis[0] = plt.subplot2grid((2,3),(0,0), colspan=2)
         axis[1] = plt.subplot2grid((2,3),(1,0), colspan=2)
