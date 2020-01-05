@@ -286,7 +286,7 @@ class binary_analysis:
         return tuple([r'$\bf{s}$'.format(s=s) if ucase==False 
                       else r'$\bf{s}$'.format(s=s.upper()) for s in str(a).split(pat)])
         
-    def plot(self, var, figsize=(12,8), fname=None):
+    def plot(self, var, figsize=(12,8), loc=None, fname=None):
     
         '''
         Parameters
@@ -303,6 +303,7 @@ class binary_analysis:
         axis[0] = plt.subplot2grid((2,3),(0,0), colspan=2)
         axis[1] = plt.subplot2grid((2,3),(1,0), colspan=2)
         axis[2] = plt.subplot2grid((2,3),(0,2), rowspan=2)
+        if loc is not None: self.legend['loc'] = loc
         self.__cumu_plot(axis[0], var)
         self.__lift_plot(axis[1], var)
         self.__var_table(axis[2], var)
