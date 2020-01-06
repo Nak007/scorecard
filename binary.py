@@ -1,9 +1,3 @@
-import pandas as pd, numpy as np, math, time, os
-from matplotlib import cm
-import matplotlib.pyplot as plt
-from IPython.display import HTML, display
-import ipywidgets as widgets
-
 class binary_analysis:
     
     '''
@@ -50,7 +44,9 @@ class binary_analysis:
         self.d_lift = self.marker.copy(); self.d_lift.update(dict(color=decile_c, label='Per-decile Lift'))
         self.sample = self.marker.copy(); self.sample.update(dict(color=sample_c, label='Cum. Sample'))     
         self.target = self.marker.copy(); self.target.update(dict(color=target_c, label='Cum. Target'))
-        self.legend = dict(loc='best', fontsize=10, framealpha=0, edgecolor='none')
+        self.legend1 = dict(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=3, 
+                            framealpha=0, edgecolor='none')
+        self.legend2 = dict(loc='best', fontsize=10, framealpha=0, edgecolor='none')
         self.v_span = dict(ymin=0, ymax=1, color='#718093', alpha=0.1, hatch='///', label=r'Per-decile > 0')
         self.t_display = dict(color='k',fontsize=10, va='top', bbox=dict(facecolor='none',edgecolor='none'))
         self.cmap = cmap
@@ -167,7 +163,7 @@ class binary_analysis:
         w = widgets.HBox([self.w_t1, self.w_t2])
         display(w); time.sleep(2)
         
-    def __cumu_plot(self, axis, var):
+    def __cumu_plot(self, axis, var, loc=None):
         
         '''
         Cumulative plot of samples and tartget
@@ -201,7 +197,7 @@ class binary_analysis:
         axis.axvline(xticks[n_cutoff], color='k', linestyle="--", lw=0.8)
         kwargs = self.v_span.copy(); kwargs['label'] = 'Max. Gap (cutoff)'
         sp1 = axis.axvspan(-0.5,xticks[n_cutoff],**kwargs)
-        axis.legend([ln1[0],ln2[0],sp1],[ln1[0].get_label(),ln2[0].get_label(),sp1.get_label()],**self.legend)
+        axis.legend([ln1[0],ln2[0],sp1],[ln1[0].get_label(),ln2[0].get_label(),sp1.get_label()],**self.legend1)
         
         # display
         s, t, c = list(), list(), list()
@@ -249,7 +245,7 @@ class binary_analysis:
         axis.axvspan(-0.5,xticks[n-1],**self.v_span)
         xy = (xticks[n-1]-0.1,axis.get_ylim()[1]*0.98)
         axis.annotate(r'Combination = $\bf{%d}$ ' % (n), xy, va='top', ha='right', fontsize=10)
-        axis.legend(**self.legend)
+        axis.legend(**self.legend1)
         
     def __var_table(self, axis, var):
         
@@ -286,7 +282,7 @@ class binary_analysis:
         return tuple([r'$\bf{s}$'.format(s=s) if ucase==False 
                       else r'$\bf{s}$'.format(s=s.upper()) for s in str(a).split(pat)])
         
-    def plot(self, var, figsize=(12,8), loc=None, fname=None):
+    def plot(self, var, figsize=(12,8), fname=None):
     
         '''
         Parameters
@@ -294,6 +290,9 @@ class binary_analysis:
         
         var : str
         \t variable name
+        
+        figsize : (float,float), optional, default: (12,8)
+        \t width, height in inches of plot
         
         fname : str or PathLike or file-like object
         \t A path, or a Python file-like object (see pyplot.savefig)
@@ -303,7 +302,6 @@ class binary_analysis:
         axis[0] = plt.subplot2grid((2,3),(0,0), colspan=2)
         axis[1] = plt.subplot2grid((2,3),(1,0), colspan=2)
         axis[2] = plt.subplot2grid((2,3),(0,2), rowspan=2)
-        if loc is not None: self.legend['loc'] = loc
         self.__cumu_plot(axis[0], var)
         self.__lift_plot(axis[1], var)
         self.__var_table(axis[2], var)
@@ -385,7 +383,7 @@ class binary_analysis:
         axis.set_title(title, fontsize=12)
         axis.set_xticks(range(n_var))
         axis.set_xticklabels(np.arange(1,n_var+1), fontsize=10)
-        axis.legend(**self.legend)
+        axis.legend(**self.legend2)
         axis.grid(False)
         
     def __cmap(self, n_color=10):
