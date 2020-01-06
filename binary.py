@@ -1,3 +1,9 @@
+import pandas as pd, numpy as np, math, time, os
+from matplotlib import cm
+import matplotlib.pyplot as plt
+from IPython.display import HTML, display
+import ipywidgets as widgets
+
 class binary_analysis:
     
     '''
