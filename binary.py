@@ -6,21 +6,21 @@ import ipywidgets as widgets
 
 class binary_analysis:
     
-    '''
+    '''   
     Methods
     -------
     
-    self.fit(X, y)
+    self.fit(X, y, min_pct=0.01, bool_pct=0.9)
     \t determine binary combinations of all variables
     
-    self.plot(var, fname=None)
+    self.plot(var, figsize=(12,8), fname=None):
     \t plot the combination result with selected starting variable
     
     self.plot_sum(min_lift=1, n_var=10, top=5, figsize=(12,4.5), use_cmap=True, fname=None)
     \t plot combination(s) that passes predefined criteria
     '''
-    def __init__(self, lift_df=None, decile_c='#c23616', cumu_c='#0097e6', sample_c='#c23616', 
-                 target_c='#0097e6', cmap='cool'):
+    def __init__(self, lift_df=None, decile_c='#c23616', cumu_c='#0097e6', 
+                 sample_c='#c23616', target_c='#0097e6', cmap='cool'):
         
         '''
         Parameters
@@ -50,8 +50,7 @@ class binary_analysis:
         self.d_lift = self.marker.copy(); self.d_lift.update(dict(color=decile_c, label='Per-decile Lift'))
         self.sample = self.marker.copy(); self.sample.update(dict(color=sample_c, label='Cum. Sample'))     
         self.target = self.marker.copy(); self.target.update(dict(color=target_c, label='Cum. Target'))
-        self.legend1 = dict(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=3, 
-                            framealpha=0, edgecolor='none')
+        self.legend1 = dict(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=3, framealpha=0, edgecolor='none')
         self.legend2 = dict(loc='best', fontsize=10, framealpha=0, edgecolor='none')
         self.v_span = dict(ymin=0, ymax=1, color='#718093', alpha=0.1, hatch='///', label=r'Per-decile > 0')
         self.t_display = dict(color='k',fontsize=10, va='top', bbox=dict(facecolor='none',edgecolor='none'))
@@ -119,17 +118,28 @@ class binary_analysis:
         df['variable'] = feature
         return df
   
-    def fit(self, X, y):
+    def fit(self, X, y, min_pct=0.01, bool_pct=0.9):
         
         '''
+        * * Screening Criteria * *
+        (1) X must be boolean, X={0,1}, and all missing is replaced with 0
+        (2) count(y==1|flag==0) < count(y==1) * XX%
+        (3) sum of flags <= YY%
+        
         Parameters
         ----------
+        
+        X : array-like shape of (n_samples , n_features)
+        \t binary variables
         
         y : array-like of shape (n_samples,)
         \t target values (binary)
         
-        X : array-like shape of (n_samples , n_features)
-        \t binary variables
+        min_pct : float, optional, default: 0.01 (1%)
+        \t minimum number of targets given flag==1
+        
+        bool_pct : float, optional, default: 0.9 (90%)
+        \t maximum percentage of True in variable
         
         Return
         ------
@@ -144,9 +154,20 @@ class binary_analysis:
         |   XXXX   |   CCCC    |   322  |  2997  |  3.67  |    71.55   |   14.12    |  5.06  |
         ======================================================================================
         Note: combi_var = 'combination of variables', d_lift = 'lift by decile', and c_lift = 'cumulative lift'
-        '''     
-        self.features = X.columns[(np.nanmax(X,axis=0)==1) & (np.nanmin(X,axis=0)==0)]
-        self.y, self.X = np.array(y.copy()), X[self.features].copy().fillna(0)
+        '''
+
+        # 1st Condition: X must be boolean = {0,1}
+        Xs = X.iloc[:,((np.nanmax(X,axis=0)==1) & (np.nanmin(X,axis=0)==0))].fillna(0).copy()
+        
+        # 2nd Condition: y==1 and flag==0
+        min_flag = min_pct * sum(y)
+        Xs = Xs.iloc[:,(Xs.loc[(y==1),:].sum(axis=0)>min_flag).values]
+
+        # 3rd Condition: sum of flag <= XX%
+        Xs = Xs.iloc[:,((Xs.sum(axis=0)/len(Xs))<=self.bool_pct).values]
+        
+        # Features that satisfies above requirements
+        self.features, self.y, self.X = list(Xs), y.copy(), Xs.copy()
         self.n_samples, self.n_event, self.n_nonevent = len(y), sum(y), (y==0).sum()
         
         # initial variables
@@ -262,6 +283,8 @@ class binary_analysis:
         axis.yaxis.set_visible(False)
         axis.xaxis.set_visible(False)
         axis.set_axis_off()
+        for pos in ['right','top','left','bottom']:
+            axis.spines[pos].set_visible(False)
         axis.set_title(r'$\bf{LIST}$ $\bf{OF}$ $\bf{VARIABLES}$')
         
         tb_length = min(cellHeight*len(a),1)
