@@ -164,7 +164,7 @@ class binary_analysis:
         Xs = Xs.iloc[:,(Xs.loc[(y==1),:].sum(axis=0)>min_flag).values]
 
         # 3rd Condition: sum of flag <= XX%
-        Xs = Xs.iloc[:,((Xs.sum(axis=0)/len(Xs))<=self.bool_pct).values]
+        Xs = Xs.iloc[:,((Xs.sum(axis=0)/len(Xs))<=bool_pct).values]
         
         # Features that satisfies above requirements
         self.features, self.y, self.X = list(Xs), y.copy(), Xs.copy()
