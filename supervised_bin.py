@@ -12,9 +12,9 @@ class batch_evaluation:
     Method
     ------
 
-    \t (1) self.fit( y, X)
-    \t **Return:** 
-    \t - self.bin_df : (dataframe), table of hyper parameters and goodness-of-fit 
+    self.fit( y, X)
+    **Return:** 
+    \t self.bin_df : (dataframe), table of hyper parameters and goodness-of-fit 
     \t =================================================================
     \t | 0 | round | method | [var] | [bin] |   iv   | [corr] | [inpt] |
     \t -----------------------------------------------------------------
@@ -24,7 +24,7 @@ class batch_evaluation:
     \t =================================================================
     \t Note: [var] = 'variable', [bin] = 'model_bin', [corr] = 'correlation', and [inpt] = 'intercept'
     
-    \t - self.res_df : (dataframe)
+    \t self.res_df : (dataframe)
     \t =========================================================================================
     \t |   | round | [var] | min | max | bin | [ne] | [e] | [pne]  |  [pe]  |   woe   |   iv   | 
     \t -----------------------------------------------------------------------------------------
@@ -38,14 +38,14 @@ class batch_evaluation:
     \t =========================================================================================
     \t Note: [var] = 'variable', [ne] = 'Non_events', [e] = 'Events', [pne] = 'pct_nonevents', and [pe] = 'pct_events'
 
-    \t (2) self.plot(column='round', value=1, adjusted=False)
-    \t **Return**
-    \t - self.adj_bin_df : (dataframe), similar to self.bin_df
+    self.plot(column='round', value=1, adjusted=False)
+    **Return**
+    \t self.adj_bin_df : (dataframe), similar to self.bin_df
     
    
-    \t (3) self.filter_out()
-    \t **Return**
-    \t - self.adj_bin_df : (dataframe)
+    self.filter_out()
+    **Return**
+    \t self.adj_bin_df : (dataframe)
     '''
     def __init__(self, n_step=20, method=list(['iv','entropy','gini','chi','mono']),
                  min_pct=0.05, chi_alpha=0.05, chi_intv=15, p_value=0.05, ttest_intv=15, 
@@ -56,27 +56,55 @@ class batch_evaluation:
         ----------
 
         **woe_binning**
-        \t n_step : (int), number of steps (percentile) given defined range (min, max), (default=20)
-        \t method : (str,list) method to use for determining WOEs
-        \t          - method name (str) e.g. 'chi'
-        \t          - list of method names e.g. ['iv', 'gini']
-        \t          - default=['iv','entropy','gini','chi','mono']
-        \t min_pct : (float), minimum percentage of sample in each BIN (default=0.05)
-        \t chi_alpha : (float), significant level of Chi-sqaure (default=0.05)
-        \t chi_intv : (int), starting sub-intervals of Chi-merge (default=15)
-        \t p_value : (float), significant level of Student's T-Test (default=0.05)
-        \t ttest_intv : (int), starting sub-intervals of "Monotonic-Optimal-Binning" technique (default=15)
-        \t min_obs : (float), minimum percentage of sample in each BIN (used in 'mono'), (default=0.05)
-        \t min_event : (float), minimum percentage of event compared to its total in each BIN (default=0.05)
+        
+        n_step : int, optional, default: 20 
+        \t number of steps (percentile) given defined range (min, max)
+        
+        method : (str,list), optional, default: ['iv','entropy','gini','chi','mono']
+        \t method to use for determining WOEs
+        \t - method name (str) e.g. 'chi'
+        \t - list of method names e.g. ['iv', 'gini']
+        
+        min_pct : float, optional, default: 0.05 (5%)
+        \t minimum percentage of samples in each BIN
+        
+        chi_alpha : float, optional, default: 0.05 (5%)
+        \t significant level of Chi-sqaure (rejection region)
+        
+        chi_intv : int, optional, default: 15
+        \t starting sub-intervals of Chi-merge
+        
+        p_value : float, optional, default: 0.05 (5%)
+        \t significant level of Student's T-Test (rejection region)
+        
+        ttest_intv : int, optional, default: 15 
+        \t starting sub-intervals of "Monotonic-Optimal-Binning" technique
+        
+        min_obs : float, optional, default: 0.05 (5%)
+        \t minimum percentage of samples (event+non-event) in each BIN (used in 'mono')
+        
+        min_event : float, optional, default: 0.05 (5%)
+        \t minimum percentage of event and non-event samples with respect to their totals in each BIN
 
         **Selection criteria**
-        \t iv_imp : (float), IV importance weight (max=1, default=0.5)
-        \t min_iv : (float), minimum acceptable IV (default=0.1)
-        \t min_corr : (float), minimum acceptable absolute correlation (default=0.5)
-        \t max_tol : (float), maximum tolerance of difference between model and log(event/non-event) intercepts (default=0.01)
-        \t bin_df : (dataframe), list of hyper parameters and goodness-of-fit or binning indicators from each iteration 
-        \t          (default=None)
-        \t res_df : (dataframe), list of binning outputs (default=None)
+        
+        iv_imp : float, optional, default: 0.5 (50%)
+        \t Information Value (IV) importance weight (max=1)
+        
+        min_iv : float, optional, default: 0.1 
+        \t minimum acceptable Infomation Value (IV)
+        
+        min_corr : float, optional, default: 0.5
+        \t minimum acceptable absolute correlation
+        
+        max_tol : float, optional, default: 0.01 (1%) 
+        \t maximum tolerance of difference between model and log(event/non-event) intercepts
+        
+        bin_df : dataframe, optional, default: None 
+        \t list of hyper parameters and goodness-of-fit or binning indicators from each iteration 
+        
+        res_df : dataframe, optional, default: None
+        \t list of binning outputs
         '''
         # keyword arguments (excluding 'method')
         self.kwargs = dict(n_step=n_step, min_pct=min_pct, chi_alpha=chi_alpha, chi_intv=chi_intv, 
@@ -292,14 +320,14 @@ class woe_binning:
     Method
     ------
 
-    \t (1) self.fit(y, X)
-    \t - Fit the model according to the given initial inputs.
-    \t **Return** 
+    self.fit(y, X)
+    \t Fit the model according to the given initial inputs.
+    **Return** 
     \t - array of bin edges
     
-    \t (2) self._woe_btw_bins(y, X, r_min, r_max, plot=False, X_name=None)
-    \t - find series of cut-offs according to the given initial inputs and range  
-    \t **Return** 
+    self._woe_btw_bins(y, X, r_min, r_max, plot=False, X_name=None)
+    \t find series of cut-offs according to the given initial inputs and range  
+    **Return** 
     \t - self.woe_df (dataframe)
     '''
     def __init__(self, trend=-1, n_order=1, n_step=20, min_pct=0.05, method='iv', chi_alpha=0.05, 
@@ -308,14 +336,23 @@ class woe_binning:
         Parameters
         ----------
 
-        \t trend : (int), predefined trend of WOEs (default=-1)
-        \t   0 : downward trend
-        \t   1 : upward trend, 
-        \t  -1 : allow function to determine trend 
-        \t n_order : (int), an order of selection
-        \t n_step : (int), number of steps (percentile) given defined range (min, max)
-        \t min_pct : (float) minimum percentage of sample in each BIN
-        \t method : (str) method of optimization
+        trend : int, optional, default: -1 
+        \t predefined trend of WOEs
+        \t  0 : downward trend
+        \t  1 : upward trend 
+        \t -1 : allow function to determine trend automatically
+        
+        n_order : int, optional, default: 1 
+        \t an order of selection
+        
+        n_step : int, optional, default: 20 
+        \t number of steps (percentile) given defined range (min, max)
+        
+        min_pct : float, optional, default: 0.05 (5%)
+        \t minimum percentage of samples in each BIN
+        
+        method : str, optional, default: 'iv'
+        \t method of optimization
         \t - 'iv' : determine the cut-off with highest value of information value
         \t   $S_{0} = \sum_{y=0\Subset Y} 1$ and $S_{1} = S - S_{0}$
         \t   $P(R,y) = (\sum_{y\Subset Y|R} 1)/S_{y}$ 
@@ -342,12 +379,23 @@ class woe_binning:
         \t   that means of two adjacent intervals are the same. If the hypothesis is confirmed the intervals remain separated, 
         \t   if not, they are merged into a single interval.
 
-        \t chi_alpha : (float), significant level of Chi-sqaure
-        \t chi_intv : (int), starting sub-intervals of Chi-merge
-        \t p_value : (float), significant level of Student's T-Test
-        \t ttest_intv : (int), starting sub-intervals of "Monotonic-Optimal-Binning" technique
-        \t min_obs : (float), minimum percentage of sample in each BIN (used in 'mono')
-        \t min_event : (float), minimum percentage of event compared to its total in each BIN
+        chi_alpha : float, optional, default: 0.05 (5%)
+        \t significant level of Chi-sqaure (rejection region)
+        
+        chi_intv : int, optional, default: 15
+        \t starting sub-intervals of Chi-merge
+        
+        p_value : float, optional, default: 0.05 (5%)
+        \t significant level of Student's T-Test (rejection region)
+        
+        ttest_intv : int, optional, default: 15 
+        \t starting sub-intervals of "Monotonic-Optimal-Binning" technique
+        
+        min_obs : float, optional, default: 0.05 (5%)
+        \t minimum percentage of samples (event+non-event) in each BIN (used in 'mono')
+        
+        min_event : float, optional, default: 0.05 (5%)
+        \t minimum percentage of event and non-event samples with respect to their totals in each BIN
         '''
         # Multi-Interval Discretization (modified)
         self.trend, self.n_order = trend, n_order
@@ -364,12 +412,14 @@ class woe_binning:
     def fit(self, y, X):
 
         '''
+        fit model given pre-determined model
+        
         (1) Multi-Interval Discretization (modified) (method='iv','gini','entropy')
         (2) Chi-Merge (method='chi')
         (3) Monotone Optimal Binning (method='mono')
         '''
-        # Convert self.min_event to number
-        self.n_min_event = max(int(self.min_event*(y==1).sum()),1)
+        # check minimum between self.min_event and 1 
+        self.min_event = max(int(self.min_event*(y==1).sum()),1)/sum(y)
         switcher = {'iv': 1, 'gini': 2, 'entropy': 3, 'chi': 4, 'mono': 5}
         n = switcher.get(self.method, 999) 
         if n <= 3: self.__multi_inv_discretize(y, X)
@@ -521,18 +571,27 @@ class woe_binning:
         Parameters
         ----------
 
-        \t y : array_like shape (n_samples)
-        \t X : array-like or list shape (n_samples)
-        \t r_min, r_max : (float), minimum and maximum values of the range
-        \t plot : (boolean), whether to plot the result or not (default=False)
-        \t X_name : (str), name of variable. This appears in the title of the plot
-        \t bin_decimal : (int), decimal places displayed in BIN
-        \t fname : \str or PathLike or file-like object
+        y, X : array_like of list shape of (n_samples)
+
+        r_min, r_max : float
+        \t minimum and maximum values of the range
+        
+        plot : bool, optional, default: False
+        \t whether to plot the result or not
+        
+        X_name : str, optional, default: None 
+        \t name of variable. This appears in the title of the plot
+        
+        bin_decimal : int, optional, default: 2 
+        \t decimal places displayed in BIN
+        
+        fname : str or PathLike or file-like object, optional, default: None
+        \t file path with file name and extension
 
         Return
         ------
 
-        \t self.woe_df (dataframe)
+        self.woe_df (dataframe)
         '''
         method = {'iv': 1, 'gini': 1, 'entropy': 1, 'chi': 0, 'mono': 0}
         n = method.get(self.method, 999) 
@@ -556,7 +615,7 @@ class woe_binning:
 
                     # (1) Bin should contain at least 5% observations
                     # (2) Bin should not have 0 accounts for good or bad
-                    if (self.min_pct <= min(a,b)) & (self.n_min_event <= min(left + right)):
+                    if (self.min_pct <= min(a,b)) & (self.min_event <= min(left + right)):
 
                         # Weight of Evidence
                         left_woe.append(self.__woe(left[0], left[1]))
@@ -917,9 +976,9 @@ class plot_woe:
     Method
     ------
 
-    \t self.fit(woe_df, var_name=None, rho=999, fname=None)
-    \t **Return**
-    \t - WOE and distribution plots with respect to pre-determined bins
+    self.fit(woe_df, var_name=None, rho=999, fname=None)
+    **Return**
+    WOE and distribution plots with respect to pre-determined bins
     '''
   
     def __init__(self, c_pos='#fff200', c_neg='#aaa69d',lb_event='event', lb_n_event='non-event'):
@@ -928,8 +987,11 @@ class plot_woe:
         Parameters
         ----------
 
-        \t c_pos, c_neg : (hex) color for event and non-event, respectively
-        \t lb_event, lb_n_event : (str) label for event and non-event, respectively
+        c_pos, c_neg : hex, optional, default: ('#fff200','#aaa69d')
+        \t color for event and non-event
+        
+        lb_event, lb_n_event : str, optional, default: ('event','non-event')
+        \t label for event and non-event
         '''
         # woe plots
         bar_kwargs = dict(alpha=0.8, width=0.7, align='center', hatch='////', edgecolor='#4b4b4b', lw=1)
@@ -954,15 +1016,20 @@ class plot_woe:
         Parameters
         ----------
 
-        \t woe_df : (dataframe) must be comprised of
+        woe_df : (dataframe) must be comprised of
         \t - 'min', 'max': (float) bin range (min<=x<max)
         \t - 'bin': (int) bin number 
         \t - 'pct_nonevents', 'pct_events': (float) percentage of non-target and target
         \t - 'woe': (float), weight of evidence
         \t - 'iv': (float), information value
-        \t var_name : (str) variable name (default=None, ''undefined')
-        \t rho : (float), Pearson correlation coefficient (default=999)
-        \t fname : \str or PathLike or file-like object
+        
+        var_name : str, optional, default: None
+        \t variable name
+        
+        rho : float, optional, default: 999
+        \t Pearson correlation coefficient
+        
+        fname : str or PathLike or file-like object
         '''
         # data preparation
         self.df = woe_df.rename(str.lower,axis=1).copy()
@@ -1101,7 +1168,7 @@ class evaluate_bins:
     Method
     ------
 
-    \t self.plot(var_name=None, fname=None)
+    self.plot(var_name=None, fname=None)
     \t **Return**
     \t - plot WOEs and distribuition of events and non-events
     '''
@@ -1112,18 +1179,19 @@ class evaluate_bins:
         Parameters
         ----------
 
-        \t y : array-like or list
-        \t X : array-like or list
-        \t bin_edges : array_like
+        y, X : array-like or list
+        
+        bin_edges : array_like
+        \t list of bin edges
 
         Return 
         ------
 
-        \t self.woe_df : (dataframe), WOE summary
-        \t self.iv : (float), total information value
-        \t self.rho : (float), Pearson correlation coefficient (exluding numpy.nan)
-        \t self.modl_incpt : (float) model intercept
-        \t self.ln_incpt : (float), log of quotient of event over non-event
+        self.woe_df : (dataframe), WOE summary
+        self.iv : (float), total information value
+        self.rho : (float), Pearson correlation coefficient (exluding numpy.nan)
+        self.modl_incpt : (float) model intercept
+        self.ln_incpt : (float), log of quotient of event over non-event
         '''
         # convert bin_edges to array
         bin_edges = np.array(bin_edges)
@@ -1252,8 +1320,10 @@ class evaluate_bins:
         Parameters
         ----------
 
-        \t var_name : (str), variable name (default=None)
-        \t fname : str or PathLike or file-like object
+        var_name : str, optional ,default: None
+        \t variable name that appears on the plot
+        
+        fname : str or PathLike or file-like object
         '''
         if len(self.woe_df) <= 1:
             print('self.woe_df does not exist')
@@ -1268,10 +1338,10 @@ class woe_transform:
     Method
     ------
 
-    \t self.fit(X)
-    \t - Fit the model according to the given initial inputs.
-    \t **Return**
-    \t - self.X (dataframe)
+    self.fit(X)
+    \t Fit the model according to the given initial inputs.
+    **Return**
+    \t self.X (dataframe)
     '''
 
     def __init__(self, woe_df):
@@ -1280,7 +1350,7 @@ class woe_transform:
         Parameters
         ----------
 
-        \t woe_df : (dataframe)
+        woe_df : (dataframe)
         \t - 'variable': variable name 
         \t - 'min' & 'max': min <= X < max 
         \t - 'Bin': BIN number
