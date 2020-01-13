@@ -315,7 +315,7 @@ class woe_binning:
         \t n_order : (int), an order of selection
         \t n_step : (int), number of steps (percentile) given defined range (min, max)
         \t min_pct : (float) minimum percentage of sample in each BIN
-        \t meh tod : (str) method of optimization
+        \t method : (str) method of optimization
         \t - 'iv' : determine the cut-off with highest value of information value
         \t   $S_{0} = \sum_{y=0\Subset Y} 1$ and $S_{1} = S - S_{0}$
         \t   $P(R,y) = (\sum_{y\Subset Y|R} 1)/S_{y}$ 
