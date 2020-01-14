@@ -1392,15 +1392,15 @@ class woe_transform:
 
         # determine min and max
         r_min, r_max = np.nanmin(X), np.nanmax(X)
-        woe_df = self.woe.loc[(self.woe['variable']==X.name)]
-        min_bin = min(np.nanmin(self.woe['min']),r_min)
-        max_bin = max(np.nanmax(self.woe['max']),r_max) + 1
+        woe = self.woe.loc[(self.woe['variable']==X.name)]        
+        min_bin = min(np.nanmin(woe['min']),r_min)
+        max_bin = max(np.nanmax(woe['max']),r_max) + 1
         nan_bin = min_bin - 1 # np.nan is replaced with (min-1)
 
         # replace np.nan with the lowest number
         X = pd.Series(X).fillna(nan_bin)
         # create array of bin edges
-        bin_edges = self.woe[['min','max']].fillna(nan_bin).values
+        bin_edges = woe[['min','max']].fillna(nan_bin).values
         bin_edges = np.sort(np.unique(bin_edges.reshape(-1)))
         bin_edges[-1] = max_bin
 
@@ -1408,5 +1408,5 @@ class woe_transform:
         X = np.digitize(X, bin_edges, right=False)
         X = pd.DataFrame(X, columns=['bin'])
         X['bin'] = X['bin'] - 1 # Bin in woe_df starts from 0
-        X = X.merge(woe_df[['bin','woe']], on=['bin'], how='left')
+        X = X.merge(woe[['bin','woe']], on=['bin'], how='left')
         return X.drop(columns=['bin']).values
