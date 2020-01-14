@@ -39,12 +39,12 @@ class batch_evaluation:
     \t Note: [var] = 'variable', [ne] = 'Non_events', [e] = 'Events', [pne] = 'pct_nonevents', and [pe] = 'pct_events'
 
     self.plot(column='round', value=1, adjusted=False)
-    **Return**
+    \t **Return**
     \t self.adj_bin_df : (dataframe), similar to self.bin_df
     
    
     self.filter_out()
-    **Return**
+    \t **Return**
     \t self.adj_bin_df : (dataframe)
     '''
     def __init__(self, n_step=20, method=list(['iv','entropy','gini','chi','mono']),
@@ -1340,8 +1340,6 @@ class woe_transform:
 
     self.fit(X)
     \t Fit the model according to the given initial inputs.
-    **Return**
-    \t self.X (dataframe)
     '''
 
     def __init__(self, woe_df):
@@ -1350,60 +1348,65 @@ class woe_transform:
         Parameters
         ----------
 
-        woe_df : (dataframe)
-        \t - 'variable': variable name 
-        \t - 'min' & 'max': min <= X < max 
-        \t - 'Bin': BIN number
-        \t - 'Non_events' & 'Events': number of non-events and events, respectively
-        \t - 'pct_nonevents', 'pct_events': (%) of non-events and events, respectively
-        \t - 'WOE': Weight of Evidence
-        \t - 'IV': Information Value
+        woe_df : dataframe
+        \t =================================================================================
+        \t |   | [var] | min | max | bin | [ne] | [e] | [pne]  |  [pe]  |   woe   |   iv   | 
+        \t ---------------------------------------------------------------------------------
+        \t | 0 |  xxx  | nan | nan |  0  |    0 |   0 | 0.0000 | 0.0000 | -5.7228 | 0.0000 |
+        \t | 1 |  xxx  |  0  |  1  |  1  |  651 |   8 | 0.0519 | 0.1951 | -1.3237 | 0.1895 |
+        \t | 2 |  xxx  |  1  |  2  |  2  | 1971 |  11 | 0.1572 | 0.2683 | -0.5344 | 0.0594 |
+        \t | 3 |  xxx  |  2  |  3  |  3  | 2992 |   7 | 0.2387 | 0.1707 |  0.3350 | 0.0228 |
+        \t | 4 |  xxx  |  3  |  4  |  4  | 5318 |  12 | 0.4242 | 0.2927 |  0.3712 | 0.0488 |
+        \t | 5 |  xxx  |  4  |  5  |  5  |  641 |   2 | 0.0511 | 0.0488 |  0.0471 | 0.0001 |
+        \t | 6 |  xxx  |  5  |  6  |  6  |  963 |   1 | 0.0768 | 0.0244 |  1.1473 | 0.0601 |
+        \t =================================================================================
+        \t Note: [var] = 'variable', [ne] = 'Non_events', [e] = 'Events', 
+        \t       [pne] = 'pct_nonevents', and [pe] = 'pct_events'
         '''
-        self.woe_df = woe_df.rename(str.lower,axis=1)
+        self.woe = woe_df.rename(str.lower,axis=1)
 
     def fit(self, X):
 
         '''
-        Fitting model
-        
         Parameters
         ----------
 
-        \t X : array-like or sparse matrix, shape (n_samples, n_features)
+        X : dataframe, shape of (n_samples, n_features)
+        \t dataframe of variables that will be tranformed into WOEs
+        
+        Return
+        ------
+        
+        self.X : dataframe
         '''
-        dType = tuple((pd.core.series.Series, pd.DataFrame))
-        if isinstance(X, dType)==True: 
-            woe_var = np.unique(self.woe_df['variable'].values)
+        woe, dType = list(), tuple((pd.core.series.Series, pd.DataFrame))
+        if isinstance(X, dType): 
+            woe_var = np.unique(self.woe['variable'].values)
             columns = [var for var in X.columns if var in woe_var]
-            if len(columns) > 0:
-                self.X = pd.DataFrame()
-                for (n, var) in enumerate(columns):
-                    woe = pd.DataFrame(data=self.__assign_woe(X[var]), columns=[var])
-                    if n==0: self.X = woe
-                    else: self.X = self.X.merge(woe, left_index=True, right_index=True)
-
+            for var in columns:
+                woe.append(self.__assign_woe(X[var]).reshape(-1,1))
+            self.X = pd.DataFrame(np.hstack(woe),columns=columns) 
+        else: self.X = None
+                    
     def __assign_woe(self, X):
 
-        '''
-        X must be Series
-        '''
         # determine min and max
         r_min, r_max = np.nanmin(X), np.nanmax(X)
-        woe_df = self.woe_df.loc[(self.woe_df['variable']==X.name)]
-        min_bin = min(np.nanmin(woe_df['min'].values),r_min)
-        max_bin = max(np.nanmax(woe_df['max'].values),r_max) + 1
-        nan_bin = min_bin - 1
+        woe_df = self.woe.loc[(self.woe['variable']==X.name)]
+        min_bin = min(np.nanmin(self.woe['min']),r_min)
+        max_bin = max(np.nanmax(self.woe['max']),r_max) + 1
+        nan_bin = min_bin - 1 # np.nan is replaced with (min-1)
 
         # replace np.nan with the lowest number
         X = pd.Series(X).fillna(nan_bin)
         # create array of bin edges
-        bin_edges = woe_df[['min','max']].fillna(nan_bin).values
+        bin_edges = self.woe[['min','max']].fillna(nan_bin).values
         bin_edges = np.sort(np.unique(bin_edges.reshape(-1)))
         bin_edges[-1] = max_bin
 
         # Assign group index to value array and convert to dataframe
         X = np.digitize(X, bin_edges, right=False)
-        X = pd.DataFrame(data=X, columns=['bin'])
+        X = pd.DataFrame(X, columns=['bin'])
         X['bin'] = X['bin'] - 1 # Bin in woe_df starts from 0
         X = X.merge(woe_df[['bin','woe']], on=['bin'], how='left')
         return X.drop(columns=['bin']).values
