@@ -1009,7 +1009,7 @@ class points_allocation:
         tw_axis.set_ylabel('Score', fontsize=10)
         axis.set_xticks(xticks)
         axis.set_xticklabels(xticklabels, fontsize=10)
-        axis.set_title(label + iva
+        axis.set_title(label + iv)
         kwargs = dict(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, 
                       framealpha=0, edgecolor='none')
         tw_axis.legend(plots, labels, **kwargs)
