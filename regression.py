@@ -5,8 +5,51 @@ from IPython.display import HTML, display
 import ipywidgets as widgets
 import statsmodels.discrete.discrete_model as sm
 from sklearn.metrics import accuracy_score
+from sklearn.model_selection import KFold
 
-# **_class_** : k_fold
+def k_iter_logit(estimator, X, y, cls_metrics=accuracy_score, n_splits=10, random_state=0):
+    
+    '''
+    k_iter_logit is built for making scorecard only. a iteration where 
+    positive coefficients are eliminated in each round
+    
+    Parameters
+    ----------
+    
+    estimator : regression estimator object
+    \t regression estimator e.g. sklearn.linear_model.LogisticRegression
+        
+    X : dataframe, shape of (n_samples, n_features)
+        
+    y : array-like, shape of (n_samples)
+    
+    cls_metrics : classification metrics object (sklearn.metrics)
+    \t classifation metrics (accuracy_score is set as default)
+    \t e.g. metrics.accuracy_score(y_true, y_pred)
+
+    n_splits : int, optional, default: 5 
+    \ number of folds. Must be at least 2
+
+    random_state : int, optional ,default: 0 
+    \t randomState instance or None
+    '''
+    variables, pos_coef, n = X.columns, 100, 0
+    cv_label = 'Round ==> {:,d}, no. of variables: {:,d}'
+    while pos_coef > 0:
+        n += 1; print(cv_label.format(n,len(variables)))
+        k = k_fold(estimator, cls_metrics, n_splits, random_state)
+        k.fit(X[variables].copy(), y.copy())
+        pos_coef = np.sum(k.best_model.coef_[0]>0)
+        variables = variables[(k.best_model.coef_[0]<=0)]
+        
+    # result: coefficients and weights
+    a = (np.array(variables).reshape(-1,1),
+         k.best_model.coef_[0].reshape(-1,1))
+    theta = pd.DataFrame(np.hstack(a), columns=['variable','coef'])
+    theta['weight'] = abs(theta['coef']/np.sum(abs(theta['coef']))*100)
+    theta = theta.sort_values(by=['weight'],ascending=False).reset_index(drop=True)
+      
+    return k.best_model, variables, theta
 
 class k_fold:
 
@@ -14,10 +57,8 @@ class k_fold:
     Method
     ------
 
-    \t self.fit(X, y): Fit the model according to the given initial inputs.
-    \t **Return**
-    \t - self.accuracy
-    \t - self.model
+    self.fit(X, y)
+    \t fit model according to the given initial inputs
 
     K-Folds cross-validator
     -----------------------
@@ -25,34 +66,50 @@ class k_fold:
     sklearn.model_selection.KFold (scikit-learn v0.21.3)
     https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.KFold.html
     '''
-    def __init__(self, model, cls_metrics=accuracy_score, n_splits=10, random_state=0):
+    def __init__(self, estimator, cls_metrics=accuracy_score, n_splits=5, random_state=0):
 
         '''
         Parameters
         ----------
 
-        \t model : Regression Model
-        \t cls_metrics: classifation metrics (accuracy_score is set as default)
-        \t - e.g. metrics.accuracy_score(y_true, y_pred)
-        \t n_splits : int, default=10, Number of folds. Must be at least 2.
-        \t random_state : int, default=0 RandomState instance or None
+        estimator : estimator object
+        \t estimator e.g. sklearn.linear_model.LogisticRegression
+        
+        cls_metrics : classification metrics object (sklearn.metrics)
+        \t classifation metrics (accuracy_score is set as default)
+        \t e.g. metrics.accuracy_score(y_true, y_pred)
+        
+        n_splits : int, optional, default: 5 
+        \ number of folds. Must be at least 2
+        
+        random_state : int, optional ,default: 0 
+        \t RandomState instance or None
         '''
-        from sklearn.model_selection import KFold
-
-        self.model, self.cls_metrics = model, cls_metrics
-        self.kf = KFold(n_splits=n_splits, shuffle=False, random_state=random_state)
+        self.model, self.cls_metrics = estimator, cls_metrics
+        self.cls_name = self.cls_metrics.__name__
+        self.kf = KFold(n_splits=max(n_splits,2), shuffle=False, random_state=random_state)
+        self.str = '- Cross Validation (%d) --> Model performance (%s) : %0.2f%%'
     
     def fit(self, X, y):
 
         '''
-        Fitting model
         Parameters
         ----------
 
-        \t X : array-like or sparse matrix, shape (n_samples, n_features)
-        \t y : array-like, shape (n_samples)
+        X : array-like or sparse matrix, shape of (n_samples, n_features)
+        
+        y : array-like, shape of (n_samples)
+        
+        Return
+        ------
+        
+        self.m_perform
+        \t best estimator's performace given the classification metrics
+        
+        self.best_model
+        \t best estimator object
         '''
-        self.best_model, self.accuracy, n_kf = None, -1, 0
+        self.best_model, self.m_perform, n_kf = None, -1, 0
         for train_index, test_index in self.kf.split(X):
 
             # select sample given indices
@@ -60,20 +117,16 @@ class k_fold:
             y_train, y_test = y.loc[train_index], y.loc[test_index]
 
             # fit model
-            n_kf += 1
-            print(' -- Cross Validation (%d) -- ' % n_kf)
             self.model.fit(X_train, y_train)
             y_proba = self.model.predict_proba(X_test)
             y_proba = y_proba.round()[:,1]
 
             # cut-off @ 50%
-            m_accuracy = self.cls_metrics(y_test.values, y_proba)
-            print('Model accuracy : %0.2f%%' % (m_accuracy*100))
-            if self.accuracy < m_accuracy:
-                self.accuracy = m_accuracy
+            m_perform = self.cls_metrics(y_test.values, y_proba)
+            n_kf += 1; print(self.str % (n_kf, self.cls_name ,m_perform*100))
+            if self.m_perform < m_perform:
+                self.m_perform = m_perform
                 self.best_model = self.model
-
-# **_class_** : stepwise_logistics
 
 class stepwise_logistics:
 
@@ -81,15 +134,8 @@ class stepwise_logistics:
     Method
     ------
 
-    \t (1) self.fit(X, y): Fit the model according to the given initial inputs.
-    \t **Return**
-    \t - self.pvalues : (dataframe)
-    \t - self.coef : (dataframe), coefficient of selected variables
-    \t - self.intercept : (float), intercept from logistic regression
-
-    \t (2) self.predict_prob(X)
-    \t **Return**
-    \t - array of probabilities
+    self.fit(X, y): Fit the model according to the given initial inputs.
+    self.predict_prob(X)
 
     Regression model
     ----------------
@@ -104,26 +150,28 @@ class stepwise_logistics:
         Parameters
         ----------
 
-        \t method : (str)
-        \t - 'newton' : Newton-Raphson
-        \t - 'nm' : Nelder-Mead
-        \t - 'bfgs' : Broyden-Fletcher-Goldfarb-Shanno (BFGS)
-        \t - 'lbfgs' : limited-memory BFGS with optional box constraints
-        \t - 'powell' : modified Powell’s method
-        \t - 'cg' : conjugate gradient
-        \t - 'ncg' : Newton-conjugate gradient
-        \t - 'basinhopping' : global basin-hopping solver  (default)
-        \t - 'minimize' : generic wrapper of scipy minimize (BFGS by default)
+        method : str, optional, default: 'basinhopping'
+        \t 'newton' : Newton-Raphson
+        \t 'nm' : Nelder-Mead
+        \t 'bfgs' : Broyden-Fletcher-Goldfarb-Shanno (BFGS)
+        \t 'lbfgs' : limited-memory BFGS with optional box constraints
+        \t 'powell' : modified Powell’s method
+        \t 'cg' : conjugate gradient
+        \t 'ncg' : Newton-conjugate gradient
+        \t 'basinhopping' : global basin-hopping solver
+        \t 'minimize' : generic wrapper of scipy minimize (BFGS by default)
 
-        \t selection : (str)
-        \t - 'forward' : Forward (Step-Up) selection (default)
-        \t - 'backward' : Backward (Step-Down) selection
-        \t - 'stepwise' : a combination of the Forward and Backward selection techniques
+        selection : str, optional, default: 'forward'
+        \t 'forward' : Forward (Step-Up) selection
+        \t 'backward' : Backward (Step-Down) selection
+        \t 'stepwise' : a combination of the Forward and Backward selection techniques
 
-        \t threshold : (float), two-tailed hypothesis test alpha
-        \t fit_intercept : (bool), whether to calculate the intercept
+        threshold : float, optional, default: 0.025 (2.5%) 
+        \t two-tailed hypothesis test alpha
+        
+        fit_intercept : bool, optional, default: False
+        \t whether to calculate the intercept
         '''
-
         self.method, self.selection = method, selection
         self.threshold, self.fit_intercept = threshold, fit_intercept
         self.kwargs = {'disp':False, 'method':method}
@@ -133,12 +181,18 @@ class stepwise_logistics:
     def fit(self, X, y):
 
         '''
-        Fitting model
         Parameters
         ----------
 
-        \t X : array-like or sparse matrix, shape (n_samples, n_features)
-        \t y : array-like, shape (n_samples)
+        X : array-like or sparse matrix, shape (n_samples, n_features)
+        y : array-like, shape (n_samples)
+        
+        Return
+        ------
+        
+        self.pvalues : dataframe
+        self.coef : dataframe, coefficient of selected variables
+        self.intercept : float, intercept from logistic regression
         '''
         # Initiate progress bar
         self.__widgets()
@@ -196,7 +250,8 @@ class stepwise_logistics:
         self.exclude = [var for var in columns if var not in new_list]
     
     def __thetas(self, y, X):
-
+        
+        # fit model with included variables
         model = sm.Logit(y, X[self.include])
         result = model.fit(**self.kwargs)
         self.pvalues = result.pvalues
@@ -305,8 +360,9 @@ class stepwise_logistics:
         Parameters
         ----------
         
-        \t X : (dataframe) of shape (n_samples, n_features), Vector to be scored, 
-        \t where n_samples is the number of samples and n_features is the number of features.
+        X : (dataframe) of shape (n_samples, n_features)
+        \t Vector to be scored, where n_samples is the number of samples 
+        \t and n_features is the number of features.
         '''
         X, _ = self.__to_df(X)
         if self.fit_intercept == True: X['Intercept'] = 1
@@ -324,36 +380,45 @@ class stepwise_logistics:
 
     def __update_widget(self, label):
         self.w_t.value = label; time.sleep(0.1)
-
-# **_class_** : evaluate_classifier
-
+        
 class evaluate_classifier:
 
     '''
     Method
     ------
 
-    \t self.fit(n_class=1)
-    \t - Fit the model according to the given initial inputs and predefinced class
-    \t **Return**
-    \t - plots of statistical measurement of goodness-to-fit
+    self.fit(n_class=1)
+    \t Fit the model according to the given initial inputs and predefinced class
+    **Return**
+    \t plots of statistical measurement of goodness-to-fit
     '''
 
-    def __init__(self, lb_event='event', lb_nonevent='non-event', width=3.75, height=3.5, n_step=20, 
+    def __init__(self, lb_event='event', lb_nonevent='non-event', figsize=(3.75,3.5), n_step=20, 
                  c_line ='#ea2027', c_fill ='#7f8fa6'):
 
         '''
         Parameters
         ----------
 
-        \t lb_event : (str), target label (default='event')
-        \t lb_nonevent : (str), non-target label (default='non-event')
-        \t width, height : (float), width and height of plot (inches), (default=(3.75,3.5))
-        \t n_step : (float), number of bins for distribution plot (default=20)
-        \t c_line : (hex), color of line plot (default='#ea2027')
-        \t c_fill : (hex), color of fill plot (default='#7f8fa6')
+        lb_event : str, optional, default: 'event'
+        \t target label 
+        
+        lb_nonevent : str, optional, default: 'non-event'
+        \t non-target label
+        
+        figsize : tuple of floats, optional, default: (3.75,3.5)
+        \t width and height of each plot (inches)
+        
+        n_step : float, optional,  default: 20
+        \t number of bins for distribution plot
+        
+        c_line : hex, optional, default: '#ea2027'
+        \t color of line plot
+        
+        c_fill : hex, optional, default: '#7f8fa6'
+        \t color of fill plot 
         '''
-        self.figsize  = (4*width, 2*height)
+        self.figsize  = (4*figsize[0], 2*figsize[1])
         self.lb_event, self.lb_nonevent = lb_event, lb_nonevent
         self.n_step = n_step
         self.c_line, self.c_fill = c_line, c_fill
@@ -365,10 +430,17 @@ class evaluate_classifier:
         Parameters
         ----------
 
-        \t y : array-like or list, target array (binary)
-        \t y_proba : y : array-like or list, shape (n_samples, {0,1})
-        \t n_class : int, class label={0,1}
-        \t fname : str or PathLike or file-like object (see pyplot.savefig)
+        y : array-like or list, target array (binary)
+        
+        y_proba : array-like of shape (n_samples, n_classes)
+        \t log-probability of the sample for each class in the model
+        \t where classes are ordered from 0 to (n-1) class
+        
+        n_class : int, optional, default: 1
+        \t class label
+        
+        fname : str or PathLike or file-like object, default: None
+        \t (see pyplot.savefig)
         '''
         self.y, self.y_proba = np.array(y), np.array(y_proba)
         self.n_class = n_class
@@ -679,64 +751,83 @@ class evaluate_classifier:
 
     def __summary(self):
 
-        columns = ['TP','FP','TN','FN','accuracy','error','specificity',
-                   'tpr','fpr','precision', 'roc', 'gini', 'ks', 'ks_cutoff']
-        a = np.array([self.tp, self.fp, self.tn, self.fn, self.accuracy, 
-                      self.error, self.specificity, self.tpr, self.fpr, 
-                      self.precision, self.roc_auc, self.gini, self.ks, 
-                      self.ks_cutoff]).reshape(1,-1)
-        self.df = pd.DataFrame(a,columns=columns)
-        
-# **_class_** : points_allocation
-
+        a = ['TP','FP','TN','FN','accuracy','error','specificity',
+             'tpr','fpr','precision', 'roc', 'gini', 'ks', 'ks_cutoff']
+        b = [self.tp, self.fp, self.tn, self.fn, self.accuracy, self.error, 
+             self.specificity, self.tpr, self.fpr, self.precision, self.roc_auc, 
+             self.gini, self.ks, self.ks_cutoff]
+        self.df = pd.DataFrame({'measurement':a,'value':b}).set_index(['measurement'])
+ 
 class points_allocation:
   
     '''
     Method
     ------
 
-    \t (1) self.fit(X)
-    \t - Fit the model according to the given initial inputs 
-    \t **Return**
-    \t - self.X (dataframe)
+    self.fit(X)
+    \t Fit the model according to the given initial inputs 
+    **Return**
+    \t self.X (dataframe)
 
-    \t (2) self.plot()
-    \t - Plot Weight of Evidence against Score for each feature
+    self.plot()
+    \t Plot Weight of Evidence against Score for each feature
     '''
-    def __init__(self, woe_df, coef_df, intercept, odds=50, pt_odds=600, pdo=20, decimal=2, 
-                 width=6, height=4, c_pos='#fff200', c_neg='#aaa69d', c_line='#ea2027'):
+    def __init__(self, woe_df, coef_df, intercept=0, odds=50, pt_odds=600, pdo=20, decimal=0, 
+                 figsize=(6,4.5), color=('#fff200','#aaa69d','#ea2027')):
     
         '''
         Parameters
         ----------
 
-        \t woe_df : (dataframe)
-        \t - 'variable': variable name 
-        \t - 'min' & 'max': min <= X < max 
-        \t - 'Bin': BIN number
-        \t - 'Non_events' & 'Events': number of non-events and events, respectively
-        \t - 'pct_nonevents', 'pct_events': (%) of non-events and events, respectively
-        \t - 'WOE': Weight of Evidence
-        \t - 'IV': Information Value
+        woe_df : dataframe
+        \t =================================================================================
+        \t |   | [var] | min | max | bin | [ne] | [e] | [pne]  |  [pe]  |   woe   |   iv   | 
+        \t ---------------------------------------------------------------------------------
+        \t | 0 |  xxx  | nan | nan |  0  |    0 |   0 | 0.0000 | 0.0000 | -5.7228 | 0.0000 |
+        \t | 1 |  xxx  |  0  |  1  |  1  |  651 |   8 | 0.0519 | 0.1951 | -1.3237 | 0.1895 |
+        \t | 2 |  xxx  |  1  |  2  |  2  | 1971 |  11 | 0.1572 | 0.2683 | -0.5344 | 0.0594 |
+        \t | 3 |  xxx  |  2  |  3  |  3  | 2992 |   7 | 0.2387 | 0.1707 |  0.3350 | 0.0228 |
+        \t | 4 |  xxx  |  3  |  4  |  4  | 5318 |  12 | 0.4242 | 0.2927 |  0.3712 | 0.0488 |
+        \t | 5 |  xxx  |  4  |  5  |  5  |  641 |   2 | 0.0511 | 0.0488 |  0.0471 | 0.0001 |
+        \t | 6 |  xxx  |  5  |  6  |  6  |  963 |   1 | 0.0768 | 0.0244 |  1.1473 | 0.0601 |
+        \t =================================================================================
+        \t Note: [var] = 'variable', [ne] = 'Non_events', [e] = 'Events', 
+        \t       [pne] = 'pct_nonevents', and [pe] = 'pct_events'
 
-        \t coef_df : (dataframe) 
-        \t - it is comprised of 'variable' and 'coef' obtained from model
+        coef_df : (dataframe) 
+        \t it is comprised of 'variable' and 'coef' obtained from model
 
-        \t intercept : (float), model intercept
-        \t odds : (int), initial odd (default=50)
-        \t pt_odds : (int), points assigned to initial odd (default=600)
-        \t pdo : (int), points that doubles the odd (default=20)
-        \t decimal : (int), score precision (decimal place), (default=2)
-        \t width, height : (float), width and height of plot (default=5,4)
-        \t 
+        intercept : float, optional, default: 0
+        \t model intercept from logistic regression
+        
+        odds : int, optional, default: 50
+        \t initial odd
+        
+        pt_odds : int, optional, default: 600
+        \t point assigned to initial odd 
+        
+        pdo : int, optional, default: 20
+        \t point that doubles the odd
+        
+        decimal : int, optional, default: 0
+        \t score precision (decimal place)
+        
+        figsize : tuple of floats, optional, default: (5,4)
+        \t width and height of plot (inches)
+        
+        color : tuple of hex, optional, default: ('#fff200','#aaa69d','#ea2027')
+        \t color for event, non-event, and score, respectively
 
         Return
         ------
 
-        \t self.adverse_score : (float), rejection score
-        \t self.min_score, self.max_score : (float), the possible minimum and maximum scores
-        \t self.neutral_score : (float), neutral score (weighted average approach)
-        \t self.score_df : (dataframe) score distribution
+        self.adverse_score : float, rejection score
+        
+        self.min_max : tuple of floats, the possible minimum and maximum scores
+        
+        self.neutral_score : float, neutral score (weighted average approach)
+        
+        self.score_df : dataframe, score distribution
         '''
         # pdo = Point Double the Odd
         self.factor = pdo/np.log(2)
@@ -748,17 +839,16 @@ class points_allocation:
         self.coef_df = coef_df.rename(str.lower, axis='columns')
 
         # color attributes
-        self.figsize = (width,height)
-        self.posbar_kwargs = dict(color=c_pos, label='WOE(Non-event>Event)', alpha=0.8, width=0.7, 
+        self.figsize, self.width = figsize, 0.6
+        self.posbar_kwargs = dict(color=color[0], label='WOE(Non-event>Event)', alpha=0.8, width=self.width, 
                                   align='center', hatch='////', edgecolor='#4b4b4b', lw=1)
         self.postxt_kwargs = dict(ha='center',va='top', rotation=0, color='#4b4b4b', fontsize=10)
-        self.posscr_kwargs = dict(ha='center',va='bottom', rotation=0, color=c_line, fontsize=10)
-        self.negbar_kwargs = dict(color=c_neg, label='WOE(Non-event<Event)', alpha=0.8, width=0.7, 
+        self.negbar_kwargs = dict(color=color[1], label='WOE(Non-event<Event)', alpha=0.8, width=self.width, 
                                   align='center', hatch='////', edgecolor='#4b4b4b', lw=1)
         self.negtxt_kwargs = dict(ha='center',va='bottom', rotation=0, color='#4b4b4b',fontsize=10)
-        self.negscr_kwargs = dict(ha='center',va='top', rotation=0, color=c_line, fontsize=10)
-        self.score_kwargs = dict(color=c_line, lw=1, ls='--', label='score', marker='o',markersize=4, fillstyle='none')
-        self.n_score_kwargs = dict(lw=0.8, ls='--', color='k')
+        self.score_kwargs = dict(color=color[2], lw=1, ls='--', label='score', marker='o',
+                                 markersize=4, fillstyle='none')
+        self.n_score_kwargs = dict(lw=1.5, ls='-', color=color[2])
 
         # allocate points, calculate possible max, min, and adverse score
         self.__attribute_score(decimal)
@@ -779,7 +869,7 @@ class points_allocation:
 
         # possible max and min points
         a = self.score_df[['variable','score']].groupby(['variable']).agg(['min','max']).values
-        self.min_score, self.max_score = sum(a[:,0]), sum(a[:,1])
+        self.min_max = (sum(a[:,0]), sum(a[:,1]))
 
         # adverse score (rejection score where woe = 0)
         self.adverse_score = -incpt * self.factor + offset
@@ -801,12 +891,12 @@ class points_allocation:
         Parameters
         ----------
 
-        \t X : array-like, shape (n_samples, n_features)
+        X : array-like, shape (n_samples, n_features)
 
-        Returns
-        -------
+        Return
+        ------
 
-        \t X : (dataframe), shape of (n_samples, n_features + total_score)
+        X : (dataframe), shape of (n_samples, n_features + total_score)
         '''
         if isinstance(X, tuple((pd.core.series.Series,pd.DataFrame))):
             self.X = np.zeros(len(X)).reshape(-1,1)
@@ -824,8 +914,8 @@ class points_allocation:
         # determine min and max 
         r_min, r_max, x_name = np.nanmin(X), np.nanmax(X), X.name
         a = self.score_df.loc[(self.score_df['variable']==x_name)]
-        min_bin = min(np.nanmin(a['min'].values),r_min)
-        max_bin = max(np.nanmax(a['max'].values),r_max) + 1
+        min_bin = min(np.nanmin(a['min']),r_min)
+        max_bin = max(np.nanmax(a['max']),r_max) + 1
         nan_bin = min_bin - 1
 
         # replace np.nan with the lowest number
@@ -851,8 +941,11 @@ class points_allocation:
         Parameters
         ----------
         
-        \t fpath : (str), folder path where all plots will be stored (default=None)
-        \t prefix : (str), affix that will be added to the beginning of plot's name (default='')
+        fpath : str, optional, default: None
+        \t folder path where all plots will be stored
+        
+        prefix : str, optional, default: ''
+        \t prefix that will be added to the beginning of plot's name 
         ''' 
         for var in np.unique(self.score_df['variable']):
             fig, axis = plt.subplots(1, 1, figsize=self.figsize)
@@ -867,12 +960,12 @@ class points_allocation:
         Parameter
         ---------
 
-        \t iv : (float), Infomation Value (summation of WOEs)
+        iv : float, Infomation Value (summation of WOEs)
 
         Return
         ------
 
-        \t prediction_strength : (str), IV predictiveness
+        prediction_strength : (str), IV predictiveness
         '''
         if iv < 0.02: return 'Not useful for prediction'
         elif iv >= 0.02 and iv < 0.1: return 'Weak predictive Power'
@@ -885,12 +978,12 @@ class points_allocation:
         iv = 'IV = %.4f (%s)' % (a.iv.sum(), self.__iv_predict(a.iv.sum()))
         label = 'Variable: %s \n ' % var
         n_score = self.neutral_score.loc[self.neutral_score['variable']==var]
-        n_score = float(n_score['neutral_score'])
+        n_score = int(n_score['neutral_score'])
 
         # positive and negative WOEs
         Pos_Y = [max(n,0) for n in a['woe'].values]
         Neg_Y = [min(n,0) for n in a['woe'].values]
-        score = a['score'].values
+        score = a['score'].astype(int).values
         xticks = np.arange(a.shape[0])
         xticklabels = self.__ticklabels(a['min'].values)
 
@@ -898,42 +991,36 @@ class points_allocation:
         bar1 = axis.bar(xticks, Pos_Y, **self.posbar_kwargs)
         bar2 = axis.bar(xticks, Neg_Y, **self.negbar_kwargs)
         tw_axis = axis.twinx()
-        lns1 = tw_axis.plot(xticks, score, **self.score_kwargs)
+        lns1 = tw_axis.plot(xticks, score,**self.score_kwargs)
         lns2 = tw_axis.axhline(n_score, **self.n_score_kwargs)
         plots = tuple((bar1, bar2, lns1[0], lns2))
-        labels = tuple((bar1.get_label(), bar2.get_label(),'score','neutral score (%d)' % n_score))
+        labels = tuple((bar1.get_label(), bar2.get_label(),
+                        'score, in bracket','neutral score (%d)' % n_score))
 
-        # text
-        for n, s in enumerate(Pos_Y):
-            if s>0: 
-                axis.text(n, -0.05, '%0.2f' % s, **self.postxt_kwargs)
-                tw_axis.text(n, score[n], '%0.0f' % score[n], **self.posscr_kwargs)
-        for n, s in enumerate(Neg_Y):
-            if s<0: 
-                axis.text(n, +0.05, '%0.2f' % s, **self.negtxt_kwargs)
-                tw_axis.text(n, score[n], '%0.0f' % score[n], **self.negscr_kwargs)
+        for n, s in enumerate(np.array(Pos_Y) + np.array(Neg_Y)):
+            if s>0: axis.text(n, -0.05, '{:.2f}\n({:d})'.format(s,score[n]), **self.postxt_kwargs)
+            elif s<0: axis.text(n, +0.05, '{:.2f}\n({:d})'.format(s,score[n]) , **self.negtxt_kwargs)
 
+        # format axis
+        y_ticks = axis.get_yticks(); diff = np.diff(y_ticks)[0]
+        axis.set_ylim(min(y_ticks)-diff,max(y_ticks)+diff)
         axis.set_facecolor('white')
         axis.set_ylabel('Weight of Evidence (WOE)', fontsize=10)
         tw_axis.set_ylabel('Score', fontsize=10)
-        axis.set_xlabel(r'$BIN_{n} = BIN_{n} \leq X < BIN_{n+1}$', fontsize=10)
         axis.set_xticks(xticks)
         axis.set_xticklabels(xticklabels, fontsize=10)
-        axis.set_title(label + iv)
-        tw_axis.legend(plots, labels, loc='best', framealpha=0, edgecolor='none')
+        axis.set_title(label + iva
+        kwargs = dict(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, 
+                      framealpha=0, edgecolor='none')
+        tw_axis.legend(plots, labels, **kwargs)
         axis.grid(False)
   
-    def __ticklabels(self, a):
+    def __ticklabels(self, a, decimal=1, amt_lmt=1000):
 
         '''
         Set Xticklabels format
         '''
-        a = np.array(a).tolist()
-        ticklabels = np.empty(len(a),dtype='|U100')
-        a = ['\n'.join(('missing','(nan)'))] + a[1:]
-        for n, b in enumerate(a):
-            ticklabels[n] = b
-            if n > 0:
-                if b < 1000: ticklabels[n] = '{:.1f}'.format(b)
-                else: ticklabels[n] = '{:.1e}'.format(b)
-        return ticklabels
+        fmt = ['{:.' + str(decimal) + 'f}','{:.' + str(decimal) + 'e}']
+        labels = [fmt[0].format(amt) if amt<amt_lmt else fmt[1].format(amt) 
+                  for (n,amt) in enumerate(a[1:],1)]
+        return ['\n'.join(('missing','(nan)'))] + labels
