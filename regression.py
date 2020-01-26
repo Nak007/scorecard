@@ -394,7 +394,7 @@ class evaluate_classifier:
     '''
 
     def __init__(self, lb_event='event', lb_nonevent='non-event', figsize=(3.75,3.5), n_step=20, 
-                 c_line ='#ea2027', c_fill ='#7f8fa6'):
+                 c_line ='#1e272e', c_fill ='#7f8fa6', c_event='#ff793f', c_nevent='#227093'):
 
         '''
         Parameters
@@ -416,13 +416,20 @@ class evaluate_classifier:
         \t color of line plot
         
         c_fill : hex, optional, default: '#7f8fa6'
-        \t color of fill plot 
+        \t color of fill plot
+        
+        Attributes
+        ----------
+        
+        df : dataframe
+        \t summary of all measurements
         '''
-        self.figsize  = (4*figsize[0], 2*figsize[1])
+        self.figsize  = (4*figsize[0], 3*figsize[1])
         self.lb_event, self.lb_nonevent = lb_event, lb_nonevent
         self.n_step = n_step
         self.c_line, self.c_fill = c_line, c_fill
         self.lb_kwargs = dict(loc='best', fontsize=10, framealpha=0, edgecolor='none')
+        self.c_event, self.c_nevent = c_event, c_nevent
 
     def fit(self, y, y_proba, n_class=1, fname=None):
 
@@ -430,10 +437,11 @@ class evaluate_classifier:
         Parameters
         ----------
 
-        y : array-like or list, target array (binary)
+        y : array-like of shape (n_sample,)
+        \t target array (binary)
         
         y_proba : array-like of shape (n_samples, n_classes)
-        \t log-probability of the sample for each class in the model
+        \t probability of the sample for each class in the model
         \t where classes are ordered from 0 to (n-1) class
         
         n_class : int, optional, default: 1
@@ -442,95 +450,96 @@ class evaluate_classifier:
         fname : str or PathLike or file-like object, default: None
         \t (see pyplot.savefig)
         '''
-        self.y, self.y_proba = np.array(y), np.array(y_proba)
-        self.n_class = n_class
-        print('class (%d) is a target (event)' % self.n_class)
-        # find max probability among classes (by row)
-        y_pred = np.argmax(self.y_proba, axis=1)
-        # prediction given class
-        self.y_pred = (y_pred==self.n_class).astype(int)
-        # actual target given class
-        self.y_true = (self.y==self.n_class).astype(int)
-        # probability given class
-        self.n_y_proba = self.y_proba[:,self.n_class]
-
+        y_true, y_pred = np.array(y).copy(), np.array(y_proba)[:,n_class]
+        print('class (%d) is a target (event)' % n_class)
+       
         # set up plot area
-        fig = plt.figure(figsize=self.figsize)
-        axis, b = np.full(8,None), -1
-        axis_loc = [(m, n) for m in range(2) for n in range(4)]
-        for n, loc in enumerate(axis_loc):
-            axis[n] = plt.subplot2grid((2,4),loc)
+        fig = plt.figure(figsize = self.figsize)
+        axis_loc = [(m,n) for m in range(3) for n in range(4)]
+        axis = [plt.subplot2grid((3,4),loc) for (n,loc) in enumerate(axis_loc) if n<11]
 
         # (1) ROC curve and GINI
-        self._roc_curve(axis[0])
-
+        self.gini_chart(axis[0], y_true, y_pred)
         # (2) Distribution of events and non-events
-        self._distribution(axis[1])
-
+        self.dist_chart(axis[1], y_true, y_pred,self.n_step)
         # (3) Kolmogorov–Smirnov test
-        self._ks(axis[2])
-
+        self.ks_chart(axis[2], y_true, y_pred)
         # (4) Confusion matrix given KS cut-off
-        self._confusion_matrix(axis[3], self.ks_cutoff)
-
-        # (5) Gain chart 10th to 100th decile
-        cum_event, cum_pop, pct_event, pct_pop = self.__cumulative()
-        self._gain(axis[4], cum_event, cum_pop)
-
-        # (6) Lift chart (cummulative population)
-        ch_lb = r'Lift Chart ($10^{th}$ to $100^{th}$ decile)'
-        self._lift(axis[5], cum_event, cum_pop, ch_lb, -1)
-
-        # (7) Lift chart by decile      
-        self._lift(axis[6], pct_event, pct_pop, 'Lift Chart @ decile', -1, True)  
-
-        # (8) 1st to 10th decile
-        cum_event, cum_pop, _, _ = self.__cumulative(r_min=90)
-        ch_lb = r'Lift Chart ($1^{st}$ to $10^{th}$ decile)'
-        self._lift(axis[7], cum_event, cum_pop, ch_lb)
+        self.confusion_matrix(axis[3], y_true, y_pred, self.ks_cutoff)
+        
+        # lift information
+        lift = lift_summary(y_true, y_pred)
+        title, rng = r'%s ($10^{th}$ to $100^{th}$)', range(10,101,10)
+        
+        # (5) Lift chart
+        self.lift_chart(axis[4], lift['c_lift'], rng, title % 'Lift Chart')
+        # (6) Decile chart
+        self.lift_chart(axis[5], lift['d_lift'], rng, title % 'Decile Chart')  
+        # (7) Bad Rate chart
+        self.badrate_chart(axis[6], lift['bad_rate'], rng, title % 'Bad-Rate Chart')
+        
+        # (8) Gain chart
+        y = [0] + lift['cum_pct_bad'].values.tolist()
+        self.gain_chart(axis[7], y, range(0,101,10))
+       
+        # lift information
+        lift = lift_summary(y_true, y_pred, r=(90,100))
+        title, rng = r'%s ($1^{st}$ to $10^{th}$)', range(1,11)
+        
+        # (9) Lift chart (last BIN)
+        self.lift_chart(axis[8], lift['c_lift'], rng, title % 'Lift Chart')
+        # (10) Decile chart (last BIN)
+        self.lift_chart(axis[9], lift['d_lift'], rng, title % 'Decile Chart')  
+        # (11) Bad Rate chart (last BIN)
+        self.badrate_chart(axis[10], lift['bad_rate'], rng, title % 'Bad-Rate Chart')
 
         fig.tight_layout()
         if fname is not None: plt.savefig(fname)
         plt.show()
         self.__summary()
 
-    def _confusion_matrix(self, axis, threshold=0.5):
-
+    def confusion_matrix(self, axis, y_true, y_proba, threshold=0.5):
+        
+        '''
+        Description
+        -----------
+        
+        - Accuracy : how often is the classifier correct?
+        - Error : how often is the classifier incorrect?
+        - Specificity: when the actual value is negative, 
+          how often is the prediction correct?
+        - Sensitivity: when the actual value is positive, 
+          how often is the prediction correct?
+          how "sensitive" is the classifier to detecting positive instances?
+        - False Positive Rate: When the actual value is negative, 
+          how often is the prediction incorrect?
+        - Precision: when a positive value is predicted, 
+          how often is the prediction correct?
+          
+        Parameters
+        ----------
+        
+        y_true : array-like of shape (n_sample,)
+        \t target array (binary)
+        
+        y_proba : array-like of shape (n_samples,)
+        \t probability of the sample given class
+        
+        threshold : float, optional, default: 0.5
+        \t probabilistic threshold
+        '''
         from sklearn.metrics import confusion_matrix as cfm
-
-        r_prob = self.y_proba[:, self.n_class]
-        y_pred = (r_prob>=threshold).astype(int)
-
-        confusion = cfm(self.y_true, y_pred)
+        confusion = cfm(y_true, (y_proba>=threshold).astype(int))
         tp, fp = confusion[1,1], confusion[0,1]
         tn, fn = confusion[0,0], confusion[1,0]
         tt = np.sum(confusion)
-
         self.tp = tp/tt; self.fp = fp/tt
         self.tn = tn/tt; self.fn = fn/tt
-
-        # Classification Accuracy: Overall
-        # how often is the classifier correct?
         self.accuracy = 100*(tp+tn)/tt 
-        # Classification Error: Overall, 
-        # how often is the classifier incorrect?
         self.error = 100*(fp+fn)/tt
-
-        # Specificity: When the actual value is negative, 
-        # how often is the prediction correct?
         self.specificity = 100*tn/max(tn+fp,1)
-
-        # Sensitivity: When the actual value is positive, 
-        # how often is the prediction correct?
-        # How "sensitive" is the classifier to detecting positive instances?
         self.tpr = 100*tp/max(tp+fn,1)
-
-        # False Positive Rate: When the actual value is negative, 
-        # how often is the prediction incorrect?
         self.fpr = 100*fp/max(tn+fp,1)
-
-        # Precision: When a positive value is predicted, 
-        # how often is the prediction correct?
         self.precision = 100*tp/max(tp+fp,1)
 
         axis.matshow(confusion, cmap=plt.cm.hot, alpha=0.2)
@@ -550,7 +559,7 @@ class evaluate_classifier:
         axis.set_ylabel(r'Predict ($cutoff_{ks}$ = %0.1f%%)' % (threshold*100))
         axis.set_xlabel('Actual')
         axis.set_facecolor('white')
-
+        
     def _precision_recall(self, axis):
 
         from sklearn.metrics import average_precision_score as p_scr
@@ -558,7 +567,6 @@ class evaluate_classifier:
 
         # compute precision-recall pairs for different probability thresholds
         avg_precision = p_scr(self.y_true, self.y_pred)
-
         # Precisions and recalls given range of thresholds
         precision, recall, _ = pr_curve(self.y_true, self.n_y_proba)
 
@@ -572,182 +580,246 @@ class evaluate_classifier:
         axis.set_title('Precision-recall curves (%d%%)' % (avg_precision*100))
         axis.set_facecolor('white')
         axis.grid(False)
-
-    def _roc_curve(self, axis):
-
+        
+    def gini_chart(self, axis, y_true, y_proba):
+        
+        '''
+        The Gini coefficient is a single number aimed at measuring how 
+        well model performs.
+        
+        Parameters
+        ----------
+        
+        y_true : array-like of shape (n_sample,)
+        \t target array (binary)
+        
+        y_proba : array-like of shape (n_samples,)
+        \t probability of the sample given class
+        '''
         from sklearn.metrics import roc_curve, roc_auc_score 
 
         # ROC curve
-        fpr, tpr, roc_thr = roc_curve(self.y_true, self.n_y_proba)
+        fpr, tpr, roc_thr = roc_curve(y_true, y_proba)
         # Compute Area Under the Receiver Operating Characteristic Curve 
-        self.roc_auc = roc_auc_score(self.y_true, self.n_y_proba)
+        self.roc_auc = roc_auc_score(y_true, y_proba)
         self.gini = 2*self.roc_auc - 1
 
         # plot results
-        axis.plot(fpr, tpr, color=self.c_line, lw=2, label='ROC curve')
-        axis.plot([0,1],[0,1], color=self.c_line, lw=1, label='random classifier', linestyle='--')
+        axis.plot(fpr*100, tpr*100, color=self.c_line, lw=2, label='ROC curve')
+        axis.plot([0,100],[0,100], color=self.c_line, lw=1, label='random classifier', linestyle='--')
         kwargs = dict(step='pre',alpha=0.2,hatch='////',edgecolor='#6b6b6b')
-        axis.fill_between(fpr, tpr, color=self.c_fill, **kwargs)
+        axis.fill_between(fpr*100, tpr*100, color=self.c_fill, **kwargs)
         axis.legend(**self.lb_kwargs)
         axis.set_title('ROC curve (GINI = %d%%)' % (self.gini*100))
         axis.set_xlabel('False Positive Rate (1-Specificity)')
         axis.set_ylabel('True Positive Rate (Sensitivity)')
         axis.set_facecolor('white') 
         axis.grid(False)
+     
+    def dist_chart(self, axis, y_true, y_proba, n_step=20, n_tick=5):
 
-    def _distribution(self, axis):
-
-        # distribution of the data
-        y_accept = self.y_proba[self.y_pred==1][:,self.n_class]
-        if len(y_accept)==0: y_accept=np.zeros(2)
-        event = self.y_proba[self.y_true==1][:,self.n_class]
-        nonevent = self.y_proba[self.y_true==0][:,self.n_class]
-
-        # bins, ticks and tick labels
-        bins, x_ticks, x_ticklabels = self.__ticks()
-        n_pos, _ = np.histogram(event, bins=bins, range=(0,1))
-        n_neg, _ = np.histogram(nonevent, bins=bins, range=(0,1))
-        n_pos, n_neg = n_pos/sum(n_pos)*100, n_neg/sum(n_neg)*100
-
+        '''
+        Distribution of events and non-events
+        It is intended to illustrate the separation of two distributions
+        according to obtained probabilities from model
+        
+        Parameters
+        ----------
+        
+        axis : matplotlib axis object
+        \t base class for axis in matplotlib
+        
+        y_true : array-like of shape (n_sample,)
+        \t target array (binary)
+        
+        y_proba : array-like of shape (n_samples,)
+        \t probability of the sample given class
+        
+        n_step : int, optional, default: 20
+        \t number of bins for distribution
+        
+        n_tick : int, optional, default: 5
+        \t number of x-ticks
+        '''
+        # create bins given number of steps
+        pos, neg = y_proba[y_true==1].copy(), y_proba[y_true==0].copy()
+        r_max, r_min = max(y_proba), min(y_proba)
+        bins = np.arange(r_min,r_max*1.0001,(r_max-r_min)/n_step)
+        
+        # number of samples given BIN
+        kwargs = dict(bins=bins, range=(0,1))
+        n_pos = np.histogram(pos,**kwargs)[0]*100/len(pos)
+        n_neg = np.histogram(neg,**kwargs)[0]*100/len(neg)
         # plot results
         xticks = np.arange(len(bins)-1)
-        kwargs = dict(edgecolor='#6b6b6b',alpha=0.5)
-        axis.bar(xticks, n_pos, color='#0be881', label=self.lb_event, **kwargs)
-        axis.bar(xticks, n_neg, color='#ff3f34', label=self.lb_nonevent, **kwargs)
-        axis.set_xticks(x_ticks)
-        axis.set_xticklabels(x_ticklabels)
+        kwargs = dict(edgecolor='#6b6b6b', alpha=0.5)
+        axis.bar(xticks, n_pos, color=self.c_event, label=self.lb_event, **kwargs)
+        axis.bar(xticks, n_neg, color=self.c_nevent, label=self.lb_nonevent, **kwargs)
+        
+        # tick positions and labels
+        xticklabels = (np.arange(r_min,r_max*1.0001,(r_max-r_min)/n_tick)*100).astype(int)
+        xticks = np.arange(0,len(bins),(len(bins)-1)/n_tick)
+        axis.set_xticks(xticks)
+        axis.set_xticklabels(xticklabels)
         axis.legend(**self.lb_kwargs)
-        axis.set_title('Distribution ($min_{%s}$ = %d%%)' % (self.lb_event,min(event)*100))
+        axis.set_title('Distribution ($min_{%s}$ = %d%%)' % (self.lb_event,min(pos)*100))
         axis.set_xlabel('Probability')
         axis.set_ylabel('Percentage of samples (%)')
         axis.set_facecolor('white')
         axis.grid(False)
-  
-    def _ks(self, axis):
 
-        # event, non-event and unique bins
-        event = self.y_proba[self.y_true==1][:,self.n_class]*100
-        nonevent = self.y_proba[self.y_true==0][:,self.n_class]*100
-        bins = [0] + np.unique(self.y_proba*100).tolist() + [100]
+    def ks_chart(self, axis, y_true, y_proba):
+
+        '''
+        Kolmogorov–Smirnov
+        
+        In statistics, the Kolmogorov–Smirnov test is a nonparametric test of 
+        the equality of continuous, one-dimensional probability distributions 
+        that can be used to compare a sample with a reference probability 
+        distribution (one-sample K–S test), or to compare two samples.
+        
+        Reference: https://en.wikipedia.org/wiki/Kolmogorov–Smirnov_test
+        
+        Parameters
+        ----------
+        
+        axis : matplotlib axis object
+        \t base class for axis in matplotlib
+        
+        y_true : array-like of shape (n_sample,)
+        \t target array (binary)
+        
+        y_proba : array-like of shape (n_samples,)
+        \t probability of the sample given class 
+        '''
+        event = y_proba[y_true==1]*100
+        nonevent = y_proba[y_true==0]*100
+        bins = [0] + np.unique(y_proba*100).tolist() + [100]
 
         # cumulative % distribution
         n_pos, _ = np.histogram(event, bins=bins)
         n_neg, _ = np.histogram(nonevent, bins=bins)
-        n_pos = [0] + np.cumsum(n_pos/sum(n_pos)).tolist() 
-        n_neg = [0] + np.cumsum(n_neg/sum(n_neg)).tolist()
+        n_pos = [0] + np.cumsum(n_pos/sum(n_pos)*100).tolist() 
+        n_neg = [0] + np.cumsum(n_neg/sum(n_neg)*100).tolist()
         diff = [abs(m-n) for (m,n) in zip(n_pos,n_neg)]
         n = np.argmax(diff)
-        self.ks_cutoff = bins[n]/100
-        self.ks = diff[n]
+        self.ks_cutoff, self.ks = bins[n]/100, diff[n]
 
         # plot results
-        axis.plot(bins, n_pos, color='#0be881', lw=2, label=self.lb_event)
-        axis.plot(bins, n_neg, color='#ff3f34', lw=2, label=self.lb_nonevent)
+        axis.plot(bins, n_pos, color=self.c_event, lw=2, label=self.lb_event)
+        axis.plot(bins, n_neg, color=self.c_nevent, lw=2, label=self.lb_nonevent)
         kwargs = dict(alpha=0.2, hatch='////', edgecolor='#6b6b6b')
         axis.fill_between(bins, n_pos, n_neg,color=self.c_fill,**kwargs)
-        axis.plot(bins, diff, color='#3742fa', lw=1, label='KS')
-        axis.axvline(bins[n], color='k',linestyle="--", lw=0.8) 
+        axis.plot([bins[n]]*2,[n_pos[n],n_neg[n]], color=self.c_line, lw=1, label='KS')
         axis.legend(**self.lb_kwargs)
-        value_tp = tuple((diff[n]*100, self.ks_cutoff*100))
+        value_tp = tuple((diff[n], self.ks_cutoff*100))
         axis.set_title('KS=%0.2f%%, cutoff=%0.2f%%' % value_tp)
         axis.set_xlabel('Probability')
         axis.set_ylabel('Cumulative Distribution (%)')
         axis.set_facecolor('white')
         axis.grid(False)
-  
-    def __ticks(self, n_ticks=5):
 
-        # create bins given number of steps
-        r_prob = self.y_proba[:, self.n_class]
-        r_max, r_min = max(r_prob), min(r_prob)
-        r_incr = (r_max-r_min)/self.n_step
-        bins = [r_min + (n*r_incr) for n in range(self.n_step+1)] 
-        bins[-1] = bins[-1] * 1.01
-
-        # tick positions and labels
-        xincr = (r_max-r_min)/n_ticks
-        xticks = [n*(len(bins)-1)/n_ticks for n in range(n_ticks+1)]
-        xticklabels = [r_min + (n*xincr) for n in range(n_ticks+1)]
-        xticklabels = ['{:,.0f}'.format(n*100) for n in xticklabels] 
-
-        return bins, xticks, xticklabels
-  
-    def _gain(self, axis, cum_event, cum_pop):
+    def gain_chart(self, axis, cum_event, decile):
         
         '''
         Gain chart plot the cumulative of number of targets (events) 
-        against the cumulative number of samples 
+        against the cumulative number of samples
+        
+        Parameters
+        ----------
+        
+        axis : matplotlib axis object
+        \t base class for axis in matplotlib
+        
+        cum_event : array-like of shape (n_sample,)
+        \t cumulative percentage of events or targets
+        
+        decile : array-like of shape (n_samples,)
+        \t cumulative percentage of samples
         '''
-        # multiply with 100 (convert % to integer)
-        cum_event = [0] + [int(n*100) for n in cum_event]
-        cum_pop = [0] + [round(int(n*100),-1) for n in cum_pop]
-
-        # plot results
-        xticks = np.arange(len(cum_event))
+        xticks = range(len(cum_event))
         kwargs = dict(lw=2, label='model', marker='o',markersize=5)
         axis.plot(xticks, cum_event, color=self.c_line, **kwargs)
         axis.plot([0,10],[0,100], color=self.c_line, lw=1, label='random', ls='--')
-        kwargs = dict(alpha=0.2,hatch='////',edgecolor='#6b6b6b')
+        kwargs = dict(alpha=0.2, hatch='////', edgecolor='#6b6b6b')
         axis.fill_between(xticks, cum_event, color=self.c_fill, **kwargs)
         axis.set_xticks(xticks)
-        axis.set_xticklabels(cum_pop)
+        axis.set_xticklabels(decile)
         axis.legend(**self.lb_kwargs)
         axis.set_title('Gain Chart')
-        axis.set_xlabel('Cumulative % of datasets')
+        axis.set_xlabel('Cumulative % of samples')
         axis.set_ylabel('Cumulative % of events')
         axis.set_facecolor('white')
         axis.grid(False)
 
-    def _lift(self, axis, event, pop, label='Lift Chart', digit=0, cum=False):
+    def lift_chart(self, axis, lift, decile, title='Lift Chart'):
         
         ''' 
         Lift measures how much better one can expect to do with 
-        the predictive model comparing without a model. It is the ratio 
-        of gain % to the random expectation % at a given decile level. 
-        The random expectation at the xth decile is x%
+        the predictive model comparing without a model (randomness). 
+        It is the ratio of gain (%) to the random expectation (%) 
+        at a given decile level
+        
+        Parameters
+        ----------
+        
+        axis : matplotlib axis object
+        \t base class for axis in matplotlib
+        
+        lift : array-like of shape (n_sample,)
+        \t lift of events or targets
+        
+        decile : array-like of shape (n_samples,)
+        \t cumulative percentage of samples
+        
+        title : str, optional, default: 'Lift Chart'
+        \t title of chart
         '''
-        # caluclate lift
-        lift = [m/n for (m,n) in zip(event,pop)]
-        if cum==True: pop = np.cumsum(pop)
-        cum_pop = [round(int(n*100), digit) for n in pop]
-
-        # plot results
-        xticks = np.arange(len(lift))
-        axis.plot(xticks, lift, color=self.c_line, lw=2, label='model', marker='o',markersize=5)
+        xticks = range(len(lift))
+        kwargs = dict(color=self.c_line, lw=2, label='model', marker='o', markersize=5)
+        axis.plot(xticks, lift, **kwargs)
         axis.plot([0,9],[1,1], color=self.c_line, lw=1, label='random', ls='--')
         kwargs = dict(hatch='////', edgecolor='#6b6b6b', alpha=0.2)
         axis.fill_between(xticks, lift, color=self.c_fill, **kwargs)
         axis.set_xticks(xticks)
-        axis.set_xticklabels(cum_pop)
+        axis.set_xticklabels(decile)
         axis.legend(**self.lb_kwargs)
-        axis.set_title(label)
+        axis.set_title(title)
         axis.set_xlabel('% of datasets (decile)')
         axis.set_ylabel('Lift')
         axis.set_facecolor('white')
         axis.grid(False)
   
-    def __cumulative(self, r_min=0, r_max=100):
-
-        y_proba = np.array(self.y_proba[:,self.n_class]).reshape(-1,1)
-        y_true = np.array(self.y_true).reshape(-1,1).copy()
-        columns = ['y_proba','y_true']
-        y = pd.DataFrame(np.hstack((y_proba, y_true)),columns=columns)
-        y = y.sort_values(by=columns).reset_index(drop=True)
-        event, sample, index = (y['y_true']==1).sum(), len(y), range(len(y))
-        bin_pct = [(r_min + (r_max-r_min)/10*n) for n in range(11)]
-        bin_index = [int(np.percentile(index,n)) for n in bin_pct]
-        n_event, n_sample = list(), list()
-        for n,m in zip(bin_index[:-1],bin_index[1:]):
-            b = y.iloc[n:m+1,:]
-            n_sample.append(b.shape[0])
-            n_event.append(b.loc[b['y_true']==1].shape[0])
-
-        # Cumulative number of events and populations
-        p_event = np.array(n_event)[::-1]/event
-        p_sample = np.array(n_sample)[::-1]/sample
-        c_event = np.cumsum(p_event).tolist()
-        c_sample = np.cumsum(p_sample).tolist()
-        return c_event, c_sample, p_event, p_sample
+    def badrate_chart(self, axis, bad_rate, decile, title= 'Bad-Rate Chart'):
+        
+        '''
+        Bad rate is the percentage of bads within considering BIN
+        
+        Parameters
+        ----------
+        
+        axis : matplotlib axis object
+        \t base class for axis in matplotlib
+        
+        bad_rate : array-like of shape (n_sample,)
+        \t bad rate of events or targets
+        
+        decile : array-like of shape (n_samples,)
+        \t cumulative percentage of samples
+        
+        title : str, optional, default: 'Bad-Rate Chart'
+        \t title of chart
+        '''
+        xticks = range(len(bad_rate))
+        kwargs = dict(edgecolor='#6b6b6b', color=self.c_event, alpha=0.6, width=0.7)
+        axis.bar(xticks, bad_rate, **kwargs)
+        axis.set_xticks(xticks)
+        axis.set_xticklabels(decile)
+        axis.set_title(title)
+        axis.set_xlabel('% of datasets (decile)')
+        axis.set_ylabel('Bad Rate (%)')
+        axis.set_facecolor('white')
+        axis.grid(False)
 
     def __summary(self):
 
@@ -757,7 +829,71 @@ class evaluate_classifier:
              self.specificity, self.tpr, self.fpr, self.precision, self.roc_auc, 
              self.gini, self.ks, self.ks_cutoff]
         self.df = pd.DataFrame({'measurement':a,'value':b}).set_index(['measurement'])
- 
+
+def lift_summary(y_true, y_proba, r=(0,100), n=10):
+    
+    '''
+    Parameters
+    ----------
+    
+    y_true : array-like, shape of (n_sample,) 
+    \t it has to be 1-dimensional and contains only binary classses
+    
+    y_proba: array-like, shape of (n_sample,)
+    \t 1-dimensional array that contains probability of the sample 
+    \t for selected class in the model
+    
+    r : tuple of integers, optional, default: (0,100)
+    \t range of percentiles
+    
+    n : int, optional, default: 10
+    \t number of bins between defined percentile range
+    
+    Returns
+    -------
+    
+    result : dataframe
+    \t - bin : bin number
+    \t - min_prob, max_prob : range of probabilities for each BIN
+    \t - bad, sample : number of bads and samples
+    \t - bad_rate : (%) of bads with respect to sample in the BIN
+    \t - cum_pct_bad : cumulative (%) of bads with respect to total number of bads
+    \t - c_lift : cumulative lift
+    \t - d_lift : per-decile lift
+    '''
+    # bins and indices
+    n = max(n,2)
+    pct = range(r[0],r[1]+1,max(int(np.diff(r)/n),1))
+    bins = [np.percentile(y_proba,n) for n in pct]
+    a = y_proba[y_proba>bins[-1]].copy() # <-- next greater value
+    if len(a)==0: bins[-1] = min(bins[-1]*1.01,1)
+    else: bins[-1] = np.min(a)
+    index = np.digitize(y_proba,bins=bins,right=False)
+    
+    # construct a table with number of bads and samples given bins
+    a = {'y_true':y_true.copy(),'bin':np.where(index>n,n,index)}
+    a = pd.DataFrame(a).groupby('bin').agg({'y_true':['sum','count']}).reset_index()
+    a = a.sort_values(by='bin',ascending=False).loc[a['bin']>0]
+    
+    # number of bads and samples
+    bad, sample = a.values[:,1], a.values[:,2]
+    
+    # min and max range, and bad rate
+    r_min = (np.array(bins[:-1])*100)[::-1]
+    r_max = (np.array(bins[1:])*100)[::-1]
+    bad_rate = bad/sample*100
+    
+    # decile and cumulative lifts
+    factor =  np.sum(sample)/np.sum(bad)
+    decile_lift = bad/sample*factor
+    cum_lift = np.cumsum(bad)/np.cumsum(sample)*factor
+    c_pct_bad = np.cumsum(bad)/np.sum(bad)*100
+     
+    return pd.DataFrame({'bin': pct[1:][::-1],'min_prob': r_min,'max_prob': r_max,
+                         'bad': bad, 'sample': sample,
+                         'bad_rate': bad_rate, 'cum_pct_bad': c_pct_bad,
+                         'c_lift': cum_lift, 'd_lift': decile_lift})
+
 class points_allocation:
   
     '''
