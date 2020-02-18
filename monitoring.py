@@ -1,11 +1,11 @@
-import numpy as np
-from scipy.stats import chi2
-
 '''
 Instance :
 (1) system_stability
 (2) stability_index
 '''
+import numpy as np
+from scipy.stats import chi2
+
 def system_stability(X1, X2, bins, missing=0.05):
     
     '''
