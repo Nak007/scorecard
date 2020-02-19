@@ -1,9 +1,10 @@
 '''
-Instance :
+Instance:
 (1) system_stability
 (2) stability_index
+(3) m_json
 '''
-import numpy as np
+import numpy as np, json, matplotlib.pyplot as plt, sys
 from scipy.stats import chi2
 
 def system_stability(X1, X2, bins, missing=0.05):
@@ -41,18 +42,24 @@ def system_stability(X1, X2, bins, missing=0.05):
     
     dictionary of results derived from stability_index (instance).
     Indices are arranged in accordance with items in X2-list.
+    
+    ** Note **
+    In order to view nested dictionaries, use the following code
+    >>> import pprint 
+    >>> pprint.PrettyPrinter(indent=1).pprint(json_file)
     '''
     if isinstance(X2,list)==False: X2 = [X2]
     features, ssa = set(bins).intersection(X1.columns), dict()
     for (n,X) in enumerate(X2):
         n_features, a = set(X.columns).intersection(features), dict()
         if bool(n_features):
+            a['_feature_'] = list(n_features)
             for var in n_features:
                 a[var] = stability_index(X1[var],X[var],bins[var],missing)
         ssa[n] = a
     if len(X2)==1: return ssa[0]
     else: return ssa
-
+    
 def stability_index(x1, x2, bins=10, missing=0.05):
     
     '''
@@ -103,10 +110,15 @@ def stability_index(x1, x2, bins=10, missing=0.05):
     
     dictionary of (*.json)
     (1) "columns" : shape of (5,)
-    (2) "data" : shape of (n_bin+1, 5)
-    (3) "psi" : float (Population Stability Index)
-    (4) "crit_val" : float (critical value for chi-square)
+    (2) "data" : shape of ('missing' + n_bin, 5)
+    (3) "psi" : float (Population Stability Index, PSI)
+    (4) "crit_val" : float (critical value for Chi-Square)
     (5) "p_value" : float (cdf given critical value)
+    
+    ** Note **
+    In order to view nested dictionaries, use the following code
+    >>> import pprint 
+    >>> pprint.PrettyPrinter(indent=1).pprint(json_file)
     '''
     x, p, si = x1.tolist() + x2.tolist(), [None,None], dict()
     if isinstance(bins,int): bins = np.histogram(x, bins=bins)[1].tolist()
@@ -130,3 +142,41 @@ def stability_index(x1, x2, bins=10, missing=0.05):
     si['crit_val'] = (np.diff(np.hstack(p),axis=1)**2/exp).sum(axis=None)
     si['p_value'] = 1-chi2.cdf(si['crit_val'], df=1)
     return si
+
+def m_json(file, data=None, mode='r', indent=None, encoding='utf-8'):
+    
+    '''    
+    Parameters
+    ----------
+    
+    file : path-like object (representing a file system path)
+    
+    data : serialize obj as a JSON, optional, default: None
+    \t data is required only when mode is 'w'. 
+    
+    mode : str, optional, default: 'r' 
+    \t mode while opening a file. If not provided, it defaults to 'r' 
+    \t Available file modes are 'r' (read), and 'w' (write)
+    
+    indent : int, optional, default: None
+    \t indent is applied when mode is 'w'
+    
+    encoding : str, optional, default: 'utf-8'
+    \t encoding to use for UTF when reading/writing (cp874: Thai)
+    
+    Reference
+    ---------
+    (1) https://docs.python.org/2/library/json.html
+    (2) https://www.programiz.com/python-programming/methods/built-in/open
+    '''
+    if (mode=='w') & (data is not None):
+        try:
+            with open(file, mode, encoding=encoding) as f:
+                json.dump(data,f,indent=indent)
+            print('Successfully saved ==> {0}'.format(file))
+        except: print("Unexpected error: {0}".format(sys.exc_info()[0]))
+    elif mode=='r':
+        try:
+            with open(file, mode, encoding=encoding) as f:
+                return json.load(f)
+        except: print("Unexpected error: {0}".format(sys.exc_info()[0]))
