@@ -180,3 +180,47 @@ def m_json(file, data=None, mode='r', indent=None, encoding='utf-8'):
             with open(file, mode, encoding=encoding) as f:
                 return json.load(f)
         except: print("Unexpected error: {0}".format(sys.exc_info()[0]))
+            
+def prepare_xy(a, dict_keys=None, features=None, metrics=['p_value','psi']):
+  
+    '''
+    Parameters
+    ----------
+
+    a : dictionary from *.JSON file from [system_stability]
+
+    dict_keys : list or dict_keys, optional, default: None
+    \t if dict_keys is not defined (None), number of keys e.g. 0,1,..n
+    \t is automatically determined from the input file (a)
+
+    features : list of features, optional, default: None
+    \t if list of features is not defined (None), number of features is
+    \t automatically determined from the input file (a)
+
+    metrics : list of measurements, optional, default: ['p_value','psi']
+    \t list of measurements that is used to quantify the distribution
+    \t shift i.e. chi-square (p_value) and Population Stability Index (psi)
+
+    Return
+    ------
+
+    dictionary, where dict_keys = metrics
+
+    ** Note **
+    In order to view nested dictionaries, use the following code
+    >>> import pprint 
+    >>> pprint.PrettyPrinter(indent=1).pprint(json_file)
+    '''
+    f_data = dict()
+    for metric in metrics:
+        data, f_data[metric] = dict(), None
+        if dict_keys is None: dict_keys = a.keys()
+        for key in dict_keys:
+            if features is None: n_feature = a[str(key)]['_feature_']
+            else: n_feature = features.copy()
+            for f in n_feature:
+                if data.get(f)==None: data[f] = dict([('x',[]),('y',[])])
+                data[f]['x'] += [int(key)]
+                data[f]['y'] += [a[str(key)][f][metric]]
+        f_data[metric] = data
+    return f_data
