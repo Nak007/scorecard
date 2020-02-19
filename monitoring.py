@@ -138,7 +138,7 @@ def stability_index(x1, x2, bins=10, missing=0.05):
     si['psi'] = n_psi.sum(axis=None)
     
     # Chi-Square Test
-    exp = np.where(p[0]==0,1,p[0])
+    exp = np.where(p[1]==0,1,p[1])
     si['crit_val'] = (np.diff(np.hstack(p),axis=1)**2/exp).sum(axis=None)
     si['p_value'] = 1-chi2.cdf(si['crit_val'], df=1)
     return si
