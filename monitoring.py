@@ -3,6 +3,7 @@ Instance:
 (1) system_stability
 (2) stability_index
 (3) m_json
+(4) prepare_xy
 '''
 import numpy as np, json, matplotlib.pyplot as plt, sys
 from scipy.stats import chi2
