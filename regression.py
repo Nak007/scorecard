@@ -469,7 +469,7 @@ class evaluate_classifier:
         
         # lift information
         lift = lift_summary(y_true, y_pred)
-        title, rng = r'%s ($10^{th}$ to $100^{th}$)', range(10,101,10)
+        title, rng = r'%s ($10^{th}$ to $100^{th}$)', 100-lift['bin']
         
         # (5) Lift chart
         self.lift_chart(axis[4], lift['c_lift'], rng, title % 'Lift Chart')
@@ -484,7 +484,7 @@ class evaluate_classifier:
        
         # lift information
         lift = lift_summary(y_true, y_pred, r=(90,100))
-        title, rng = r'%s ($1^{st}$ to $10^{th}$)', range(1,11)
+        title, rng = r'%s ($1^{st}$ to $10^{th}$)', 100-lift['bin']
         
         # (9) Lift chart (last BIN)
         self.lift_chart(axis[8], lift['c_lift'], rng, title % 'Lift Chart')
