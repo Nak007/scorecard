@@ -870,7 +870,7 @@ def lift_summary(y_true, y_proba, r=(0,100), n=10):
     # bins and indices
     n = max(n,2)
     pct = range(r[0],r[1]+1,max(int(np.diff(r)/n),1))
-    bins = [np.percentile(y_proba,n) for n in pct]
+    bins = np.unique([np.percentile(y_proba,n) for n in pct])
     a = y_proba[y_proba>bins[-1]].copy() # <-- next greater value
     if len(a)==0: bins[-1] = min(bins[-1]*1.01,1)
     else: bins[-1] = np.min(a)
