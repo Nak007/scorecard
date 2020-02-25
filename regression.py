@@ -519,6 +519,9 @@ class evaluate_classifier:
         Parameters
         ----------
         
+        axis : matplotlib axis object
+        \t base class for axis in matplotlib
+        
         y_true : array-like of shape (n_sample,)
         \t target array (binary)
         
@@ -589,6 +592,9 @@ class evaluate_classifier:
         
         Parameters
         ----------
+        
+        axis : matplotlib axis object
+        \t base class for axis in matplotlib
         
         y_true : array-like of shape (n_sample,)
         \t target array (binary)
@@ -888,8 +894,12 @@ def lift_summary(y_true, y_proba, r=(0,100), n=10):
     decile_lift = bad/sample*factor
     cum_lift = np.cumsum(bad)/np.cumsum(sample)*factor
     c_pct_bad = np.cumsum(bad)/np.sum(bad)*100
+    
+    # rearrange percentile based on obtained bins (duplicated bins)
+    digit, n_sample = 1-len(str(int(np.diff(r)/n))), len(y_proba)
+    pct = np.unique([round((y_proba<n).sum()/n_sample*100,digit) for n in bins])
      
-    return pd.DataFrame({'bin': pct[1:][::-1],'min_prob': r_min,'max_prob': r_max,
+    return pd.DataFrame({'bin': pct[:-1][::-1],'min_prob': r_min,'max_prob': r_max,
                          'bad': bad, 'sample': sample,
                          'bad_rate': bad_rate, 'cum_pct_bad': c_pct_bad,
                          'c_lift': cum_lift, 'd_lift': decile_lift})
