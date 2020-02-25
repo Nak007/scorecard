@@ -469,7 +469,7 @@ class evaluate_classifier:
         
         # lift information
         lift = lift_summary(y_true, y_pred)
-        title, rng = r'%s ($10^{th}$ to $100^{th}$)', 100-lift['bin']
+        title, rng = r'%s ($10^{th}$ to $100^{th}$)', 100-lift['bin'].astype(int)
         
         # (5) Lift chart
         self.lift_chart(axis[4], lift['c_lift'], rng, title % 'Lift Chart')
@@ -484,7 +484,7 @@ class evaluate_classifier:
        
         # lift information
         lift = lift_summary(y_true, y_pred, r=(90,100))
-        title, rng = r'%s ($1^{st}$ to $10^{th}$)', 100-lift['bin']
+        title, rng = r'%s ($1^{st}$ to $10^{th}$)', 100-lift['bin'].astype(int)
         
         # (9) Lift chart (last BIN)
         self.lift_chart(axis[8], lift['c_lift'], rng, title % 'Lift Chart')
@@ -784,7 +784,7 @@ class evaluate_classifier:
         xticks = range(len(lift))
         kwargs = dict(color=self.c_line, lw=2, label='model', marker='o', markersize=5)
         axis.plot(xticks, lift, **kwargs)
-        axis.plot([0,9],[1,1], color=self.c_line, lw=1, label='random', ls='--')
+        axis.plot([0,len(lift)-1],[1,1], color=self.c_line, lw=1, label='random', ls='--')
         kwargs = dict(hatch='////', edgecolor='#6b6b6b', alpha=0.2)
         axis.fill_between(xticks, lift, color=self.c_fill, **kwargs)
         axis.set_xticks(xticks)
