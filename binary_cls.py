@@ -163,6 +163,7 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
         for (tp,ds,y_true) in zip(['train','test'],[X_train, X_test],[y_train, y_test]):
             classifier.fit(ds[:,index],y_true)
             y_proba = classifier.predict_proba(ds[:,index])[:,1]
+            print(tb,df[:,index].shape)
             for metric in metrics:
                 try: retval = metric(y_true, y_proba)
                 except: retval = metric(y_true, (y_proba>cutoff))
