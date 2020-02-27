@@ -65,16 +65,18 @@ def compare_classifers(estimator, X, y, test_size=0.3, random_state=0, cutoff=0.
     >>> pickle.dump(output.pkl,open('output.pkl','wb')) # save file
     >>> pickle.load(open('output.pkl','rb')) # read file
     '''
-    kwargs, data = dict(test_size=test_size, random_state=random_state), dict()
-    X_train, X_test, y_train, y_test = tts(X, y, **kwargs)
-
     if isinstance(X,pd.core.frame.DataFrame): data['columns'] = list(X)
     else: data['columns'] = ['x'+str(n+1) for n in range(X.shape[1])]
-
+    
+    X, y = np.array(X), np.array(y)
+    kwargs, data = dict(test_size=test_size, random_state=random_state), dict()
+    X_train, X_test, y_train, y_test = tts(X, y, **kwargs)
+    
     data['data'] = dict([('train',{'X':X_train.tolist(),'y':y_train.tolist()}), 
                          ('test' ,{'X':X_test.tolist() ,'y':y_test.tolist()})])
     
     for _name_ in estimator.keys():
+        print('Progress . . . algorithm: {0}'.format(_name_))
         model = estimator[_name_]; model.fit(X_train, y_train)
         data[_name_] = dict([('model',model), ('train',None), ('test',None),
                              ('importance',model.feature_importances_.tolist())])
