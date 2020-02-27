@@ -154,7 +154,7 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.5, random_state
     n_var = [p for p in enumerate(classifier.feature_importances_)]
     n_var.sort(key=_importance_,reverse=True)
     
-    a = dict([(n.__name__,[None]*n_features) for n in metrics])
+    a = dict([(n.__name__,[None]*n_feature) for n in metrics])
     data = dict([('train',a),('test',a)])
     
     for m in range(n_feature):
