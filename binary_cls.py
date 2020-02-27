@@ -167,7 +167,7 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
                 try: retval = metric(y_true, y_proba)
                 except: retval = metric(y_true, (y_proba>cutoff))
                 if isinstance(retval,np.ndarray): retval = retval.reshape(-1).tolist()
-                print(retval)
+                print(data[tp][metric.__name__])
                 data[tp][metric.__name__][m] = retval
     data['index'] = index
     return data
