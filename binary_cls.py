@@ -155,13 +155,15 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.5, random_state
     if n_feature is None: n_feature = X.shape[1]
     n_var = [p for p in enumerate(classifier.feature_importances_)]
     n_var.sort(key=_importance_,reverse=True)
-
+    
+    print(n_feature)
+    
     for n in range(n_feature):
         index = [n_var[n][0] for n in range(n+1)]
         for (tp,ds,y_true) in zip(['train','test'],[X_train, X_test],[y_train, y_test]):
             classifier.fit(ds[:,index],y_true)
-            y_proba, r = classifier.predict_proba(ds[:,index])[:,1], [None]*len(metrics)
-            for n,metric in enumerate(metrics):
+            y_proba = classifier.predict_proba(ds[:,index])[:,1]
+            for metric in metrics:
                 try: retval = metric(y_true, y_proba)
                 except: retval = metric(y_true, (y_proba>cutoff))
                 if isinstance(retval,np.ndarray): retval = retval.reshape(-1).tolist()
