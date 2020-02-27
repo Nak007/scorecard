@@ -88,7 +88,7 @@ def compare_classifers(estimator, X, y, test_size=0.3, random_state=0, cutoff=0.
             data[_name_][tp] = dict(r)
     return data
  
- def cls_n_features(classifier, X, y, n_feature=None, test_size=0.5, random_state=0, cutoff=0.5,
+ ef cls_n_features(classifier, X, y, n_feature=None, test_size=0.5, random_state=0, cutoff=0.5,
                    metrics=[confusion_matrix, accuracy_score, gini]):
     '''
     This function fits model for every increasing number of features based
