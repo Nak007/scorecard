@@ -91,7 +91,7 @@ def compare_classifers(estimator, X, y, test_size=0.3, random_state=0, cutoff=0.
             data[_name_][tp] = dict(r)
     return data
 
-def cls_n_features(classifier, X, y, n_feature=None, test_size=0.5, random_state=0, cutoff=0.5,
+def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state=0, cutoff=0.5,
                    metrics=[confusion_matrix, accuracy_score, gini]):
     '''
     This function fits model for every increasing number of features based
@@ -158,12 +158,12 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.5, random_state
     data = dict([('train',a),('test',a)])
     
     for m in range(n_feature):
+        print('feature : {0}'.format(m+1))
         index = [n_var[n][0] for n in range(m+1)]
         for (tp,ds,y_true) in zip(['train','test'],[X_train, X_test],[y_train, y_test]):
             classifier.fit(ds[:,index],y_true)
             y_proba = classifier.predict_proba(ds[:,index])[:,1]
             for metric in metrics:
-                print(tp,' ===> ',ds[:,index].shape)
                 try: retval = metric(y_true, y_proba)
                 except: retval = metric(y_true, (y_proba>cutoff))
                 if isinstance(retval,np.ndarray): retval = retval.reshape(-1).tolist()
