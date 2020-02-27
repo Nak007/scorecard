@@ -3,9 +3,9 @@ Instance
 (1) compare_classifers
 (2) cls_n_features
 '''
-import pandas as pd, numpy as np
+import pandas as pd, numpy as np, time
 from sklearn.model_selection import train_test_split as tts
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, confusion_matrix
+from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
 
 def gini(y_true,y_proba):
     return 2*roc_auc_score(y_true,y_proba)-1
@@ -22,6 +22,8 @@ def compare_classifers(estimator, X, y, test_size=0.3, random_state=0, cutoff=0.
 
     estimator : list of classifer objects
     \t This is assumed to implement the scikit-learn estimator interface
+    \t Methods    : self.fit(X, y), and self.predict_proba(X)
+    \t Attributes : self.feature_importances_
 
     X : array-like of shape (n_samples, n_features)
     \t Dataset, where n_samples is the number of samples and n_features 
@@ -65,19 +67,18 @@ def compare_classifers(estimator, X, y, test_size=0.3, random_state=0, cutoff=0.
     >>> pickle.dump(output.pkl,open('output.pkl','wb')) # save file
     >>> pickle.load(open('output.pkl','rb')) # read file
     '''
-    data = dict()
+    data, n_X, n_y = dict(), np.array(X), np.array(y)
     if isinstance(X,pd.core.frame.DataFrame): data['columns'] = list(X)
     else: data['columns'] = ['x'+str(n+1) for n in range(X.shape[1])]
-    
-    X, y = np.array(X), np.array(y)
+
     kwargs = dict(test_size=test_size, random_state=random_state)
-    X_train, X_test, y_train, y_test = tts(X, y, **kwargs)
-    
+    X_train, X_test, y_train, y_test = tts(n_X, n_y, **kwargs)
     data['data'] = dict([('train',{'X':X_train.tolist(),'y':y_train.tolist()}), 
                          ('test' ,{'X':X_test.tolist() ,'y':y_test.tolist()})])
     
     for _name_ in estimator.keys():
-        print('Progress . . . algorithm: {0}'.format(_name_))
+        start = time.time()
+        print('Progress . . . Algorithm: {0}'.format(_name_))
         model = estimator[_name_]; model.fit(X_train, y_train)
         data[_name_] = dict([('model',model), ('train',None), ('test',None),
                              ('importance',model.feature_importances_.tolist())])
@@ -89,6 +90,7 @@ def compare_classifers(estimator, X, y, test_size=0.3, random_state=0, cutoff=0.
                 if isinstance(retval,np.ndarray): retval = retval.reshape(-1).tolist()
                 r[n] = (metric.__name__,retval)
             data[_name_][tp] = dict(r)
+        print('>>> Process Time : {:,.0f} seconds'.format(int(time.time()-start)))
     return data
 
 def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state=0, cutoff=0.5,
@@ -102,6 +104,8 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
 
     estimator : classifer object
     \t This is assumed to implement the scikit-learn estimator interface
+    \t Methods    : self.fit(X, y), and self.predict_proba(X)
+    \t Attributes : self.feature_importances_
 
     X : array-like of shape (n_samples, n_features)
     \t Dataset, where n_samples is the number of samples and n_features 
@@ -134,7 +138,8 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
     ------
 
     dictionary of *.pkl format
-    {'index'  : [20, 2, ...], # column indices
+    {'columns': ['x20', 'x2', ...], # list of column names
+     'index'  : [20, 2, ...], # list of column indices
      'test'   : {metric[0] : [...], metric[1] : [...], ...},
      'train'  : {metric[0] : [...], metric[1] : [...], ...}}
 
@@ -144,8 +149,9 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
     >>> pickle.dump(output.pkl,open('output.pkl','wb')) # save file
     >>> pickle.load(open('output.pkl','rb')) # read file
     '''
+    n_X, n_y = np.array(X), np.array(y)
     kwargs = dict(test_size=test_size, random_state=random_state)
-    X_train, X_test, y_train, y_test = tts(X, y, **kwargs)
+    X_train, X_test, y_train, y_test = tts(n_X, n_y, **kwargs)
     classifier.fit(X_train,y_train)
    
     def _importance_(a):
@@ -154,11 +160,14 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
     n_var = [p for p in enumerate(classifier.feature_importances_)]
     n_var.sort(key=_importance_,reverse=True)
     
-    a = dict([(n.__name__,[None]*n_feature) for n in metrics])
-    data = dict([('train',a),('test',a)])
+    if isinstance(X,pd.core.frame.DataFrame): columns = np.array(X.columns)
+    else: columns = np.array(['x'+str(n+1) for n in range(X.shape[1])])
+    data = dict([('train',dict([(n.__name__,[]) for n in metrics])),
+                 ('test' ,dict([(n.__name__,[]) for n in metrics]))])
     
     for m in range(n_feature):
-        print('feature : {0}'.format(m+1))
+        start = time.time()
+        print('Feature : ({0}) {1}'.format(m+1, columns[n_var[m][0]]))
         index = [n_var[n][0] for n in range(m+1)]
         for (tp,ds,y_true) in zip(['train','test'],[X_train, X_test],[y_train, y_test]):
             classifier.fit(ds[:,index],y_true)
@@ -167,7 +176,8 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
                 try: retval = metric(y_true, y_proba)
                 except: retval = metric(y_true, (y_proba>cutoff))
                 if isinstance(retval,np.ndarray): retval = retval.reshape(-1).tolist()
-                print(data[tp][metric.__name__])
-                data[tp][metric.__name__][m] = retval
+                data[tp][metric.__name__] += [retval]
+        print('>>> Process Time : {:,.0f} seconds'.format(int(time.time()-start)))
     data['index'] = index
+    data['columns'] = columns[index].tolist()
     return data
