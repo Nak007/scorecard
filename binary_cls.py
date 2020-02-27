@@ -163,7 +163,7 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.5, random_state
             classifier.fit(ds[:,index],y_true)
             y_proba = classifier.predict_proba(ds[:,index])[:,1]
             for metric in metrics:
-                print(tp,' ===> ',metric.__name__)
+                print(tp,' ===> ',ds[:,index].shape)
                 try: retval = metric(y_true, y_proba)
                 except: retval = metric(y_true, (y_proba>cutoff))
                 if isinstance(retval,np.ndarray): retval = retval.reshape(-1).tolist()
