@@ -156,10 +156,8 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.5, random_state
     n_var = [p for p in enumerate(classifier.feature_importances_)]
     n_var.sort(key=_importance_,reverse=True)
     
-    print(n_feature)
-    
-    for n in range(n_feature):
-        index = [n_var[n][0] for n in range(n+1)]
+    for m in range(n_feature):
+        index = [n_var[n][0] for n in range(m+1)]
         for (tp,ds,y_true) in zip(['train','test'],[X_train, X_test],[y_train, y_test]):
             classifier.fit(ds[:,index],y_true)
             y_proba = classifier.predict_proba(ds[:,index])[:,1]
