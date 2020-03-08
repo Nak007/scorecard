@@ -1362,7 +1362,7 @@ class woe_transform:
     '''
 
     def __init__(self, woe_df):
-        self.woe_df = woe_df.rename(str.lower,axis=1)
+        self.woe_df = woe_df.rename(str.lower,axis=1).copy()
 
     def fit(self, X):
 
@@ -1384,7 +1384,7 @@ class woe_transform:
         Note: missing or np.nan is binned separately
         '''
         if isinstance(X, tuple((pd.core.series.Series, pd.DataFrame))): 
-            woe_var = np.unique(self.woe['variable'].values)
+            woe_var = np.unique(self.woe_df['variable'].values)
             columns = [var for var in X.columns if var in woe_var]
             if len(columns) > 0:
                 a = [self.__assign_woe(X[var]) for var in columns]
