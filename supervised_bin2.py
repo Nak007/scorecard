@@ -1362,7 +1362,7 @@ class woe_transform:
     '''
 
     def __init__(self, woe_df):
-        self.woe = woe_df.rename(str.lower,axis=1)
+        self.woe_df = woe_df.rename(str.lower,axis=1)
 
     def fit(self, X):
 
