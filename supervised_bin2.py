@@ -1032,7 +1032,7 @@ class evaluate_bins:
             cnt[n] = z.reshape(-1,1).copy()
         pct = [(n/sum(n)) for n in cnt]
         adj_pct =[np.where(n/sum(n)==0,replace_null/sum(n),n/sum(n)) for n in cnt]
-        woe = np.where((adj_pct[0]==0) & (adj_pct[1]==0),0,np.log(adj_pct[0]/adj_pct[1]))
+        woe = np.where((pct[0]==0) & (pct[1]==0),0,np.log(adj_pct[0]/adj_pct[1]))
         iv = (adj_pct[0]-adj_pct[1])*woe
         
         # BIN Intervals (min,max) 
