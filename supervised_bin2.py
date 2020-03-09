@@ -678,6 +678,13 @@ class batch_evaluation:
     max_tol : float, optional, default: 0.01 (1%) 
     \t maximum tolerance of difference between model and 
     \t log(event/non-event) intercepts
+    
+    **kwargs : keyword arguments
+    \t Initial keyword arguments for "woe_binning" class,
+    \r and "batch_evaluation.rank_methods()" method. 
+    \t In additon, all items do not have to be arranged in 
+    \t any particular order. Matching will be carried out
+    \t automatically.
         
     Method
     ------
