@@ -87,7 +87,7 @@ class k_fold:
         '''
         self.model, self.cls_metrics = estimator, cls_metrics
         self.cls_name = self.cls_metrics.__name__
-        self.kf = KFold(n_splits=max(n_splits,2), shuffle=False, random_state=random_state)
+        self.kf = KFold(n_splits=max(n_splits,2), shuffle=True, random_state=random_state)
         self.str = '- Cross Validation (%d) --> Model performance (%s) : %0.2f%%'
     
     def fit(self, X, y):
