@@ -123,7 +123,7 @@ class k_fold:
             y_proba = y_proba.round()[:,1]
 
             # cut-off @ 50%
-            m_perform = self.cls_metrics(y_test.values, y_proba)
+            m_perform = self.cls_metrics(y_test, y_proba)
             n_kf += 1; print(self.str % (n_kf, self.cls_name ,m_perform*100))
             if self.m_perform < m_perform:
                 self.m_perform = m_perform
