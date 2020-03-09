@@ -110,11 +110,12 @@ class k_fold:
         \t best estimator object
         '''
         self.best_model, self.m_perform, n_kf = None, -1, 0
+        X, y = np.array(X), np.array(y)
         for train_index, test_index in self.kf.split(X):
 
             # select sample given indices
-            X_train, X_test = X.loc[train_index], X.loc[test_index]
-            y_train, y_test = y.loc[train_index], y.loc[test_index]
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
 
             # fit model
             self.model.fit(X_train, y_train)
@@ -127,7 +128,7 @@ class k_fold:
             if self.m_perform < m_perform:
                 self.m_perform = m_perform
                 self.best_model = self.model
-
+                
 class stepwise_logistics:
 
     '''
