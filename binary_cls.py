@@ -61,8 +61,8 @@ def compare_classifers(estimator, X, y, test_size=0.3, random_state=0, cutoff=0.
     \t instance must take inputs in the same manner e.g.
     \t accuracy_score(y_true, y_pred)
 
-    Return
-    ------
+    Returns
+    -------
     dictionary of *.pkl format
     {'columns'  : ['x0','x1',...],
     'data'      : {'test'  : {'X' : [[...],[...]],'y' : [...]},
@@ -160,8 +160,8 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
     \t instance must take inputs in the same manner e.g. 
     \t accuracy_score(y_true, y_pred)
 
-    Return
-    ------
+    Returns
+    -------
     dictionary of *.pkl format
     {'columns': ['x20', 'x2', ...], # list of column names
      'index'  : [20, 2, ...], # list of column indices
@@ -188,8 +188,7 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
     if isinstance(X,pd.core.frame.DataFrame): columns = np.array(X.columns)
     else: columns = np.array(['x'+str(n+1) for n in range(X.shape[1])])
     data = dict([('train',dict([(n.__name__,[]) for n in metrics])),
-                 ('test' ,dict([(n.__name__,[]) for n in metrics])),
-                 ('model',[])])
+                 ('test' ,dict([(n.__name__,[]) for n in metrics]))])
     
     for m in range(n_feature):
         start = time.time()
@@ -198,7 +197,6 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
         for (tp,ds,y_true) in zip(['train','test'],[X_train, X_test],[y_train, y_test]):
             classifier.fit(ds[:,index],y_true)
             y_proba = classifier.predict_proba(ds[:,index])[:,1]
-            data['model'] += classifier
             for metric in metrics:
                 try: retval = metric(y_true, y_proba)
                 except: retval = metric(y_true, (y_proba>cutoff))
