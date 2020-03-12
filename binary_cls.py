@@ -367,5 +367,5 @@ def confustion_matrix_test(train, test, figsize=(15,10), fname=None, **kwargs):
     lr.set_facecolor('#f1f2f6')
 
     fig.tight_layout()
-    if fname not None: plt.savefig(fname)
+    if fname != None: plt.savefig(fname)
     plt.show()
