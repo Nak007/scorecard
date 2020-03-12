@@ -10,6 +10,8 @@ Functions
 \t increasing number of features
 
 (3) train_test_plot
+
+(4) confustion_matrix_test
 '''
 
 import pandas as pd, numpy as np, time
@@ -207,7 +209,7 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
     data['columns'] = columns[index].tolist()
     return data
 
-def train_test_plot(axis, train, test, sigma=2, **kwargs):
+def train_test_plot(axis, train, test, **kwargs):
 
     '''
     Plot train and test
@@ -223,33 +225,147 @@ def train_test_plot(axis, train, test, sigma=2, **kwargs):
     test : array-like or 1D-array
     \t Testing metric result
 
-    sigma : int
-    \t Standard deviation for Gaussian kernel for
-    \t scipy.ndimage.gaussian_filter1d().
-    \t The higher the sigma, the smoother the curve
-
     **kwargs : keyword arguments
     \t Keyword arguments for "train_test_plot" function,
-    \t (1) title : title of plot
-    \t (2) ylabel : label of y-axis
-    \t (3) xlabel : label of x-axis
-    \t (4) xticklabels : label of x-axis ticks
+    \t  (1) title  : the title of plot (default:None)
+    \t  (2) ylabel : the label text of y-axis (default:None)
+    \t  (3) xlabel : the label text of x-axis (default:None)
+    \t  (4) labels : the x-tick labels with list of string
+    \t      labels (default:None)
+    \t  (5) linewidth : the line width in points (default:1)
+    \t  (6) linestyle : the linestyle of the line 
+    \t      (default:'--')
+    \t  (7) colors : tuple of color-hex codes = (train,test) 
+    \t      (default:('b','r'))
+    \t  (8) sigma : int, Standard deviation for Gaussian 
+    \t      kernel for scipy.ndimage.gaussian_filter1d().
+    \t      The higher the sigma, the smoother the curve
+    \t  (9) decimal : number of decimal places for y
+    \t (10) plot : string of plot name i.e. 'step' or 'line'
     '''
     x = range(1,len(train)+1)
-    axis.plot(x, smt(train,sigma=sigma), label='Train', lw=2, color='b')
-    axis.plot(x, smt(test,sigma=sigma), label='Test', lw=2, color='r')
+    k = dict(decimal=2, sigma=2, tiltle=None, ylabel=None, xlabel=None, linewidth=2, 
+             linestyle='-', labels=None, colors=('b','r'), plot='step')
+    k = {**k,**kwargs}
 
-    if kwargs.get('title') is not None: 
-        axis.set_title(kwargs.get('title'), fontsize=14)
-    if kwargs.get('ylabel') is not None: 
-        axis.set_ylabel(kwargs.get('ylabel'), fontsize=10)
-    if kwargs.get('xlabel') is not None: 
-        axis.set_xlabel(kwargs.get('xlabel'), fontsize=10)
-
-    axis.set_xlim(1,max(x))
+    for (n,d) in enumerate(zip([train,test],['Train','Test'])):
+        c = dict(lw=k['linewidth'], ls=k['linestyle'], label=d[1], color=k['colors'][n])
+        if k['sigma'] > 0: y = smt(d[0],k['sigma'])
+        else: y = d[0]
+        if k['plot']=='step': axis.step(x, np.round_(y,k['decimal']) , **c)
+        else: axis.plot(x, np.round_(y,k['decimal']) , **c)
+  
+    if k['title'] is not None: 
+        axis.set_title(k['title'], fontsize=14)
+    if k['ylabel'] is not None: 
+        axis.set_ylabel(k['ylabel'], fontsize=10)
+    if k['xlabel'] is not None: 
+        axis.set_xlabel(k['xlabel'], fontsize=10)
+    axis.set_xlim(0.5,max(x)+0.5)
     axis.set_xticks(x)
-    if kwargs.get('xticklabels') is not None:
-        a = kwargs.get('xticklabels')
-        axis.set_xticklabels(a,color='grey', rotation=90)
+    if k['labels'] is not None:
+        axis.set_xticklabels(k['labels'],color='grey', rotation=90)
     kw = dict(loc=0,framealpha=0,facecolor=None,edgecolor=None)
     axis.legend(**kw)
+    
+def confustion_matrix_test(train, test, figsize=(15,10), fname=None, **kwargs):
+
+    '''
+    Description
+    -----------
+    - True Positive Rate (TPR): when the actual is positive, 
+      how often does the model actually predict it correctly
+    - False Positive Rate (FPR): probability of false alarm
+    - Precision: when the prediction is positive, how often 
+      is it correct
+    - Negative Predictive Value (NPV): when the prediction 
+      is negative, how often is it correct
+    - Positive Likelihood Ratio: odds of a positive 
+      prediction given that the person is sick
+    
+    Parameters
+    ----------
+    train : (n_sample,4)
+    \t Results from training dataset ['TN','FP','FN','TP']
+
+    test : (n_sample,4)
+    \t Results from testing dataset ['TN','FP','FN','TP']
+    
+    figsize : (float, float), optional, default: (15,10)
+    \t width, height in inches
+    
+    fname : str or PathLike or file-like object
+    \t A path, or a Python file-like object 
+    \t see pyplot.savefig() for more information
+    
+    **kwargs : keyword arguments
+    \t Keyword arguments for "train_test_plot()"
+    '''
+    fig = plt.figure(figsize=figsize)
+    shape = (3,3)
+
+    # Confusion Matrix output = ['TN','FP','FN','TP']
+    tp = plt.subplot2grid(shape, (0, 0))
+    fn = plt.subplot2grid(shape, (1, 0))
+    fp = plt.subplot2grid(shape, (0, 1))
+    tn = plt.subplot2grid(shape, (1, 1))
+
+    # metrics
+    tpr = plt.subplot2grid(shape, (2, 0))
+    fpr = plt.subplot2grid(shape, (2, 1))
+    # Positive predictive value (PPV), Precision
+    ppv = plt.subplot2grid(shape, (0, 2))
+    # Negative predictive value (NPV) 
+    npv = plt.subplot2grid(shape, (1, 2))
+    # Positive likelihood ratio (LR+)
+    lr = plt.subplot2grid(shape, (2, 2))
+
+    # trian and test results
+    train = train/np.sum(train,axis=1)[0]*100
+    test = test/np.sum(test,axis=1)[0]*100
+
+    def bold_font(s):
+        return ' '.join([r'$\bf{0}$'.format(n) for n in s.split(' ')])
+
+    g = {**kwargs,**dict(ylabel='Percent (%)')}
+    t = bold_font('True Positive (TP)')
+    train_test_plot(tp,train[:,3], test[:,3], **{**g, **dict(title=t)})
+    t = bold_font('False Negative (FN)') + '\n(Type II error)'
+    train_test_plot(fn,train[:,2], test[:,2], **{**g, **dict(title=t)})
+    t = bold_font('False Positive (FP)') + '\n(Type I error)'
+    train_test_plot(fp,train[:,1], test[:,1], **{**g, **dict(title=t)})
+    t = bold_font('True Negative (TN)')
+    train_test_plot(tn,train[:,0], test[:,0], **{**g, **dict(title=t)})
+
+    t = bold_font('True Positive Rate (TPR)') + '\n TP / (TP + FN) '
+    tpr1 = train[:,3]/train[:,[2,3]].sum(axis=1)*100
+    tpr2 = test[:,3]/test[:,[2,3]].sum(axis=1)*100
+    train_test_plot(tpr ,tpr1, tpr2, **{**g, **dict(title=t)})
+    tpr.set_facecolor('#f1f2f6')
+
+    t = bold_font('False Positive Rate (FPR)') + '\n FP / (FP + TN) '
+    fpr1 = train[:,1]/train[:,[0,1]].sum(axis=1)*100
+    fpr2 = test[:,1]/test[:,[0,1]].sum(axis=1)*100
+    train_test_plot(fpr ,fpr1, fpr2, **{**g, **dict(title=t)})
+    fpr.set_facecolor('#f1f2f6')
+
+    t = bold_font('Precision') + '\n TP / (TP + FP) '
+    p1 = train[:,3]/train[:,[1,3]].sum(axis=1)*100
+    p2 = test[:,3]/test[:,[1,3]].sum(axis=1)*100
+    train_test_plot(ppv , p1, p2, **{**g, **dict(title=t)})
+    ppv.set_facecolor('#f1f2f6')
+
+    t = bold_font('Negative Predictive Rate (NPR)') + '\n TN / (TN + FN) '
+    npr1 = train[:,0]/train[:,[0,2]].sum(axis=1)*100
+    npr2 = test[:,0]/test[:,[0,2]].sum(axis=1)*100
+    train_test_plot(npv , npr1, npr2, **{**g, **dict(title=t)})
+    npv.set_facecolor('#f1f2f6')
+
+    t = bold_font('Positive likelihood ratio') + '\n TPR / FPR '
+    lr1, lr2 = tpr1/fpr1, tpr2/fpr2
+    train_test_plot(lr ,lr1, lr2, **{**g, **dict(title=t)})
+    lr.set_facecolor('#f1f2f6')
+
+    fig.tight_layout()
+    if fname not None: plt.savefig(fname)
+    plt.show()
