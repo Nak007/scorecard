@@ -115,7 +115,8 @@ def compare_classifers(estimator, X, y, test_size=0.3, random_state=0, cutoff=0.
                 r[n] = (metric.__name__,retval)
             data[_name_][tp] = dict(r)
         f.value = c/len(estimator)*100
-        t.value += 'Process Time : {:,.0f} seconds'.format(int(time.time()-start))
+        #print('Process Time : {:,.0f} seconds'.format(int(time.time()-start)))
+    f.bar_style='success'; t.value = 'Complete . . .'
     return data
 
 def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state=0, cutoff=0.5,
@@ -177,8 +178,10 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
     >>> cloudpickle.dump(output.pkl,open('output.pkl','wb')) # save file
     >>> cloudpickle.load(open('output.pkl','rb')) # read file
     '''
+    t, f = progress_bar()
     n_X, n_y = np.array(X), np.array(y)
     kwargs = dict(test_size=test_size, random_state=random_state)
+    t.value = 'Fitting model . . .'
     X_train, X_test, y_train, y_test = tts(n_X, n_y, **kwargs)
     classifier.fit(X_train,y_train)
    
@@ -195,7 +198,7 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
     
     for m in range(n_feature):
         start = time.time()
-        print('Feature : ({0}) {1}'.format(m+1, columns[n_var[m][0]]))
+        t.value = 'Feature : ({0}) {1}'.format(m+1, columns[n_var[m][0]])
         index = [n_var[n][0] for n in range(m+1)]
         for (tp,ds,y_true) in zip(['train','test'],[X_train, X_test],[y_train, y_test]):
             classifier.fit(ds[:,index],y_true)
@@ -205,9 +208,11 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
                 except: retval = metric(y_true, (y_proba>cutoff))
                 if isinstance(retval,np.ndarray): retval = retval.reshape(-1).tolist()
                 data[tp][metric.__name__] += [retval]
-        print('>>> Process Time : {:,.0f} seconds'.format(int(time.time()-start)))
+        f.value = (m+1)/n_feature*100
+        #print('>>> Process Time : {:,.0f} seconds'.format(int(time.time()-start)))
     data['index'] = index
     data['columns'] = columns[index].tolist()
+    f.bar_style='success'; t.value = 'Complete . . .'
     return data
 
 def train_test_plot(axis, train, test, **kwargs):
@@ -380,3 +385,11 @@ def progress_bar():
     w = widgets.VBox([f_text, f_prog])
     display(w); time.sleep(2)
     return f_text, f_prog
+
+def sort_features(importances, features):
+    
+    def _importance_(a):
+        return a[1]
+    n_var = [p for p in zip(features,importances)]
+    n_var.sort(key=_importance_,reverse=True)
+    return n_var
