@@ -10,8 +10,6 @@ Functions
 \t increasing number of features
 
 (3) train_test_plot
-
-(4) confustion_matrix_test
 '''
 
 import pandas as pd, numpy as np, time
@@ -19,6 +17,8 @@ from sklearn.model_selection import train_test_split as tts
 from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter1d as smt
+import ipywidgets as widgets
+from IPython.display import display
 
 def gini(y_true,y_proba):
     return 2*roc_auc_score(y_true,y_proba)-1
@@ -99,10 +99,10 @@ def compare_classifers(estimator, X, y, test_size=0.3, random_state=0, cutoff=0.
     X_train, X_test, y_train, y_test = tts(n_X, n_y, **kwargs)
     data['data'] = dict([('train',{'X':X_train.tolist(),'y':y_train.tolist()}), 
                          ('test' ,{'X':X_test.tolist() ,'y':y_test.tolist()})])
-    
-    for _name_ in estimator.keys():
+    f, t = progress_bar()
+    for c,_name_ in enumerate(estimator.keys(),1):
         start = time.time()
-        print('Progress . . . Algorithm: {0}'.format(_name_))
+        t.value = 'Progress . . . Algorithm: {0}'.format(_name_)
         model = estimator[_name_]; model.fit(X_train, y_train)
         data[_name_] = dict([('model',model), ('train',None), ('test',None),
                              ('importance',model.feature_importances_.tolist())])
@@ -114,7 +114,8 @@ def compare_classifers(estimator, X, y, test_size=0.3, random_state=0, cutoff=0.
                 if isinstance(retval,np.ndarray): retval = retval.reshape(-1).tolist()
                 r[n] = (metric.__name__,retval)
             data[_name_][tp] = dict(r)
-        print('>>> Process Time : {:,.0f} seconds'.format(int(time.time()-start)))
+        f.value = c/len(estimator)*100
+        t.value += 'Process Time : {:,.0f} seconds'.format(int(time.time()-start))
     return data
 
 def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state=0, cutoff=0.5,
@@ -369,3 +370,13 @@ def confustion_matrix_test(train, test, figsize=(15,10), fname=None, **kwargs):
     fig.tight_layout()
     if fname != None: plt.savefig(fname)
     plt.show()
+    
+def progress_bar():
+    
+    kwargs = dict(value=0, min=0, max=100, step=0.01, 
+                  bar_style='info', orientation='horizontal')
+    f_text = widgets.HTMLMath(value='Calculating...')
+    f_prog = widgets.FloatProgress(**kwargs)
+    w = widgets.VBox([f_text, f_prog])
+    display(w); time.sleep(2)
+    return f_text, f_prog
