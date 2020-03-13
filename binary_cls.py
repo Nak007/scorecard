@@ -99,7 +99,7 @@ def compare_classifers(estimator, X, y, test_size=0.3, random_state=0, cutoff=0.
     X_train, X_test, y_train, y_test = tts(n_X, n_y, **kwargs)
     data['data'] = dict([('train',{'X':X_train.tolist(),'y':y_train.tolist()}), 
                          ('test' ,{'X':X_test.tolist() ,'y':y_test.tolist()})])
-    f, t = progress_bar()
+    t, f = progress_bar()
     for c,_name_ in enumerate(estimator.keys(),1):
         start = time.time()
         t.value = 'Progress . . . Algorithm: {0}'.format(_name_)
