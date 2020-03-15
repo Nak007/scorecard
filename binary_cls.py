@@ -66,14 +66,13 @@ def compare_classifers(estimator, X, y, test_size=0.3, random_state=0, cutoff=0.
     Returns
     -------
     dictionary of *.pkl format
-    {'columns'  : ['x0','x1',...],
-    'data'      : {'test'  : {'X' : [[...],[...]],'y' : [...]},
-                   'train' : {'X' : [[...],[...]],'y' : [...]}},
-    estimator_1 : {'importance : [...],
-                   'model' : estimator,
-                   'test'  : {metric[0] : m0, metric[1] : m1, ...},
-                   'train' : {metric[0] : m0, metric[1] : m1, ...}},
-    estimator_2 : { ... }}
+    {'data'        : {'test'  : {'X' : [[...],[...]],'y' : [...]},
+                      'train' : {'X' : [[...],[...]],'y' : [...]}},
+     'estimator_1' : {'importance : [...],
+                      'model' : estimator,
+                      'test'  : {metric[0] : m0, metric[1] : m1, ...},
+                      'train' : {metric[0] : m0, metric[1] : m1, ...}},
+     'estimator_2' : { ... }}
 
     ** Note **
     To write and read file
@@ -91,14 +90,17 @@ def compare_classifers(estimator, X, y, test_size=0.3, random_state=0, cutoff=0.
     >>> classifier = dict([('Random Forest', em.RandomForestClassifier())]
     >>> c = compare_classifers(classifier, X, y, metrics=metrics, cutoff=0.5)
     '''
-    data, n_X, n_y = dict(), np.array(X), np.array(y)
-    if isinstance(X,pd.core.frame.DataFrame): data['columns'] = list(X)
-    else: data['columns'] = ['x'+str(n+1) for n in range(X.shape[1])]
-
+    data = dict()
+    if isinstance(X,pd.core.frame.DataFrame): columns = list(X)
+    else: columns = ['x'+str(n+1) for n in range(X.shape[1])]
+    
     kwargs = dict(test_size=test_size, random_state=random_state)
-    X_train, X_test, y_train, y_test = tts(n_X, n_y, **kwargs)
-    data['data'] = dict([('train',{'X':X_train.tolist(),'y':y_train.tolist()}), 
-                         ('test' ,{'X':X_test.tolist() ,'y':y_test.tolist()})])
+    X_train, X_test, y_train, y_test = tts(np.array(X), np.array(y), **kwargs)
+    a = pd.DataFrame(X_train,columns=columns).to_dict(orient='list')
+    b = pd.DataFrame(X_test, columns=columns).to_dict(orient='list')
+    data['data'] = dict([('train',{'X':a,'y':y_train.tolist()}), 
+                         ('test' ,{'X':b,'y':y_test.tolist()})])
+    
     t, f = progress_bar()
     for c,_name_ in enumerate(estimator.keys(),1):
         start = time.time()
