@@ -182,10 +182,6 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
     kwargs = dict(test_size=test_size, random_state=random_state)
     t.value = 'Fitting model . . .'
     X_train, X_test, y_train, y_test = tts(np.array(X), np.array(y), **kwargs)
-    a = pd.DataFrame(X_train,columns=columns).to_dict(orient='list')
-    b = pd.DataFrame(X_test, columns=columns).to_dict(orient='list')
-    data['data'] = dict([('train',{'X': a,'y': y_train.tolist()}), 
-                         ('test' ,{'X': b,'y': y_test.tolist()})])
     classifier.fit(X_train,y_train)
    
     def _importance_(a):
@@ -198,6 +194,11 @@ def cls_n_features(classifier, X, y, n_feature=None, test_size=0.3, random_state
     else: columns = np.array(['x'+str(n+1) for n in range(X.shape[1])])
     data = dict([('train',dict([(n.__name__,[]) for n in metrics])),
                  ('test' ,dict([(n.__name__,[]) for n in metrics]))])
+    
+    a = pd.DataFrame(X_train,columns=columns).to_dict(orient='list')
+    b = pd.DataFrame(X_test, columns=columns).to_dict(orient='list')
+    data['data'] = dict([('train',{'X': a,'y': y_train.tolist()}), 
+                         ('test' ,{'X': b,'y': y_test.tolist()})])
     
     for m in range(n_feature):
         start = time.time()
