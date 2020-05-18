@@ -254,29 +254,40 @@ def m_json(file, data=None, mode='r', indent=None, encoding='utf-8'):
 def prepare_xy(a, dict_keys=None, features=None, metrics=['p_value','psi']):
   
     '''
+    This function collects data from all keys from selected 
+    variable(s) and metric(s) for plotting purpose.
+    
     Parameters
     ----------
+    a : JSON file
+    \t JSON file must have key for all system_stability 
+    \t inputs e.g. {'2010': system_stability as of 2010
+    \t              '2011': system_stability as of 2011
+    \t              '20XX': system_stability as of 20XX}
+    \t Note: key must be numeric
 
-    a : dictionary from *.JSON file from [system_stability]
+    dict_keys : list or dict_keys, optional, (default:None)
+    \t if dict_keys is not defined (None), number of keys 
+    \t e.g. 0,1,…,n is automatically determined from the 
+    \t input file (a)
 
-    dict_keys : list or dict_keys, optional, default: None
-    \t if dict_keys is not defined (None), number of keys e.g. 0,1,..n
-    \t is automatically determined from the input file (a)
+    features : list of features, optional, (default:None)
+    \t if list of features is not defined (None), number of 
+    \t features is automatically determined from the input 
+    \t file (a)
 
-    features : list of features, optional, default: None
-    \t if list of features is not defined (None), number of features is
-    \t automatically determined from the input file (a)
+    metrics : list of measurements, optional, 
+    default:['p_value','psi']
+    \t list of measurements that is used to quantify the 
+    \t distribution shift i.e. chi-square (p_value) and 
+    \t Population Stability Index (psi)
 
-    metrics : list of measurements, optional, default: ['p_value','psi']
-    \t list of measurements that is used to quantify the distribution
-    \t shift i.e. chi-square (p_value) and Population Stability Index (psi)
-
-    Return
-    ------
-
+    Returns
+    -------
     dictionary, where dict_keys = metrics
 
-    ** Note **
+    Note
+    ----
     In order to view nested dictionaries, use the following code
     >>> import pprint 
     >>> pprint.PrettyPrinter(indent=1).pprint(json_file)
