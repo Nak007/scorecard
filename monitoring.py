@@ -5,7 +5,7 @@ Instance:
 (3) m_json
 (4) prepare_xy
 '''
-import numpy as np, json, matplotlib.pyplot as plt, sys
+import numpy as np, json, sys
 from scipy.stats import chi2
 
 def system_stability(X1, X2, bins, missing=0.05):
@@ -19,32 +19,50 @@ def system_stability(X1, X2, bins, missing=0.05):
     
     Note: 
     (1) missing is binned separately
-    (2) variables are from those that exist in "X1", "X2", and "bins"
+    (2) variables are from those that exist in "X1", "X2", 
+        and "bins"
     (3) size of X1 can be different from X2
     
     Parameters
     ----------
-    
     X1 : dataframe, shape of (n_sample, n_feature)
     \t a reference dataset e.g. develpment sample
     
-    X2 : dataframe, list of datafrmes, shape of (n_sample, n_feature)
+    X2 : dataframe, list of datafarmes, 
+         shape of (n_sample, n_feature)
     \t a compared dataset, where shift is determined
     
     bins : dictionary of bin edges
-    \t i.e. {'var_1':[-inf,0,1,2,inf], 'var_2':[-inf,0,5,8,inf]}
+    \t i.e. {'var_1':[-inf,0,1,2,inf],'var_2':[-inf,0,5,8,inf]}
     
     missing : float, optional, default: 0.05 (5%)
-    \t if percent distribution is missing, default value is used when
-    \t calculate Population Stability Index (PSI)
+    \t if percent distribution is missing, default value is used
+    \t when calculate Population Stability Index (PSI)
     
-    Return
-    ------
-    
-    dictionary of results derived from stability_index (instance).
+    Returns
+    -------
+    dictionary of results derived from stability_index (method).
     Indices are arranged in accordance with items in X2-list.
     
-    ** Note **
+    Example
+    -------
+    >>> a  = np.random.randint(0, 5, size=(100, 2)
+    >>> X1 = pd.DataFrame(a, columns=list('AB'))
+    >>> b  = np.random.randint(0, 5, size=( 50, 2))
+    >>> X2 = pd.DataFrame(b, columns=list('AB'))
+    >>> bins = dict((n,np.arange(0,6)) for n in ['A','B'])
+    >>> bins
+    {'A': array([0, 1, 2, 3, 4, 5]), 
+     'B': array([0, 1, 2, 3, 4, 5])}
+    >>> system_stability(X1, X2, bins)
+    {'_feature_': ['B', 'A'],
+     'A' : {'columns': ['lower','upper','p_actual','p_expect','n_psi'],
+     'data': [(n_bins, 5)], 'psi' : float, 
+     'crit_val': float, 'p_value' : float},
+     'B' : …}
+  
+    Note
+    ----
     In order to view nested dictionaries, use the following code
     >>> import pprint 
     >>> pprint.PrettyPrinter(indent=1).pprint(json_file)
@@ -83,8 +101,8 @@ def stability_index(x1, x2, bins=10, missing=0.05):
         
                       %A(i) = A(i)/A, %E(i) = E(i)/E
           
-        where "A(i)" and "E(i)" are actual and expected amount given i
-        (bin), and "n" is a number of bins.
+        where "A(i)" and "E(i)" are actual and expected amount of 
+        ith bin, and "n" is a number of bins.
     
     (2) Using Chi-Square to test Goodness-of-Fit-Test (χ)
         The goodness of fit test is used to test if sample data fits 
@@ -93,8 +111,8 @@ def stability_index(x1, x2, bins=10, missing=0.05):
         
                   χ = ∑{(O(i)-E(i))^2/E(i)}, i ∈ 1,2,…,n
                 
-        where O and E are observed and expected percentages, and n is 
-        a number of bins
+        where O(i) and E(i) are observed and expected percentages of 
+        ith bin, and n is a number of bins
     
     Parameters
     ----------
@@ -111,7 +129,8 @@ def stability_index(x1, x2, bins=10, missing=0.05):
     \t a monotonically  increasing array of bin edges, including 
     \t the rightmost edge, allowing for non-uniform bin widths. 
     \t Frequency in each bin is defined as bins[i] <= x < bins[i+1]
-    \t Note: missing or np.nan will be binned separately
+    \t **Note**
+    \t missing or np.nan will be binned separately
     
     missing : float, optional, default: 0.05 (5%)
     \t if percent distribution is missing, default value is used
@@ -148,13 +167,17 @@ def stability_index(x1, x2, bins=10, missing=0.05):
      'crit_val': 0.06210,
      'p_value' : 0.80321}
     
-    ** Note **
+    Note
+    ----
     In order to view nested dictionaries, use the following code
     >>> import pprint 
     >>> pprint.PrettyPrinter(indent=1).pprint(json_file)
     '''
     x, p, si = x1.tolist() + x2.tolist(), [None,None], dict()
-    if isinstance(bins,int): bins = np.histogram(x, bins=bins)[1].tolist()
+    if isinstance(bins,int): 
+        bins = np.histogram(x, bins=bins)[1].tolist()
+    else: bins = list(bins)
+        
     for n,x in enumerate([x1,x2]):
         freq = np.histogram(x[~np.isnan(x)], bins=bins)[0]
         freq = [np.isnan(x).sum()] + freq.tolist()
@@ -172,35 +195,47 @@ def stability_index(x1, x2, bins=10, missing=0.05):
     
     # Chi-Square Test
     exp = np.where(p[1]==0,1,p[1])
-    si['crit_val'] = (np.diff(np.hstack(p),axis=1)**2/exp).sum(axis=None)
+    si['crit_val'] = (np.diff(np.hstack(p),axis=1)**2/exp).sum()
     si['p_value'] = 1-chi2.cdf(si['crit_val'], df=1)
     return si
 
 def m_json(file, data=None, mode='r', indent=None, encoding='utf-8'):
     
-    '''    
+    '''
+    Read and write JSON file
+    
     Parameters
     ----------
+    file : path-like object 
+    \t Object represents a file system path e.g. sample.json
     
-    file : path-like object (representing a file system path)
-    
-    data : serialize obj as a JSON, optional, default: None
+    data : serialize obj as a JSON, optional, (default:None)
     \t data is required only when mode is 'w'. 
     
     mode : str, optional, default: 'r' 
-    \t mode while opening a file. If not provided, it defaults to 'r' 
-    \t Available file modes are 'r' (read), and 'w' (write)
+    \t mode while opening a file. If not provided, it defaults  
+    \t to 'r'. Available file modes are 'r' (read), and 'w' 
+    \t (write)
     
-    indent : int, optional, default: None
+    indent : int, optional, (default:None)
     \t indent is applied when mode is 'w'
     
-    encoding : str, optional, default: 'utf-8'
-    \t encoding to use for UTF when reading/writing (cp874: Thai)
+    encoding : str, optional, (default:'utf-8')
+    \t encoding to use for UTF when reading / writing 
+    \t (cp874:Thai)
     
     Reference
     ---------
     (1) https://docs.python.org/2/library/json.html
-    (2) https://www.programiz.com/python-programming/methods/built-in/open
+    (2) https://www.programiz.com/python-programming/methods/
+        built-in/open
+        
+    Example
+    -------
+    # Write JSON file
+    >>> m_json('sample.json', data=sample, mode='w')
+    # Read JSON file
+    >>> h = m_json('sample.json', mode='r')
     '''
     if (mode=='w') & (data is not None):
         try:
@@ -213,7 +248,7 @@ def m_json(file, data=None, mode='r', indent=None, encoding='utf-8'):
             with open(file, mode, encoding=encoding) as f:
                 return json.load(f)
         except: print("Unexpected error: {0}".format(sys.exc_info()[0]))
-            
+
 def prepare_xy(a, dict_keys=None, features=None, metrics=['p_value','psi']):
   
     '''
