@@ -254,8 +254,8 @@ def m_json(file, data=None, mode='r', indent=None, encoding='utf-8'):
 def prepare_xy(a, dict_keys=None, features=None, metrics=['p_value','psi']):
   
     '''
-    This function collects data from all keys from selected 
-    variable(s) and metric(s) for plotting purpose.
+    Provided variable(s) and metric(s), this function 
+    collects data from all keys for plotting purpose.
     
     Parameters
     ----------
