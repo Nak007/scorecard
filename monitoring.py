@@ -234,6 +234,8 @@ def m_json(file, data=None, mode='r', indent=None, encoding='utf-8'):
     -------
     # Write JSON file
     >>> m_json('sample.json', data=sample, mode='w')
+    Successfully saved ==> sample.json
+    
     # Read JSON file
     >>> h = m_json('sample.json', mode='r')
     '''
