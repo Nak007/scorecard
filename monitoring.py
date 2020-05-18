@@ -76,17 +76,28 @@ def stability_index(x1, x2, bins=10, missing=0.05):
     |  0.1 – 0.25 | small change           | investigation required |       
     |    > 0.25   | Major shift            | need to delve deeper   |
     =================================================================
-    PSI = sum((%Actual-%Expect)*LOG(%Actual/%Expect))
+            
+            PSI = ∑{(%A(i)-%E(i))*LOG(%A(i)/%E(i))}, i ∈ 1,2,…,n
+        
+        In addition, %A(i) and %E(i) can be expressed as:
+        
+                      %A(i) = A(i)/A, %E(i) = E(i)/E
+          
+        where "A(i)" and "E(i)" are actual and expected amount given i
+        (bin), and "n" is a number of bins.
     
-    (2) Using Chi-Square to test Goodness-of-Fit-Test
-    The goodness of fit test is used to test if sample data fits 
-    a distribution from a certain population. Its formula is expressed
-    as X2 = sum((O-E)**2/E)
-    Null Hypothesis: two sampels are fit the expected population
+    (2) Using Chi-Square to test Goodness-of-Fit-Test (χ)
+        The goodness of fit test is used to test if sample data fits 
+        a distribution from a certain population. Its formula is 
+        expressed as:
+        
+                  χ = ∑{(O(i)-E(i))^2/E(i)}, i ∈ 1,2,…,n
+                
+        where O and E are observed and expected percentages, and n is 
+        a number of bins
     
     Parameters
     ----------
-    
     x1 : 1D-array, shape of (n_sample_1)
     \t array of actual or observed values
     
@@ -94,27 +105,48 @@ def stability_index(x1, x2, bins=10, missing=0.05):
     \t array of expected values
     \t Note: size of x1 can be different from x2
     
-    bins : int or sequence of scalars, optional, default: 10
-    \t If bins is an int, it defines the number of equal-width bins in 
-    \t the given range. If bins is a sequence, it defines 
-    \t a monotonically  increasing array of bin edges, including the 
-    \t rightmost edge, allowing for non-uniform bin widths. 
+    bins : int or sequence of scalars, optional, (default:10)
+    \t If bins is an int, it defines the number of equal-width  
+    \t bins in the given range. If bins is a sequence, it defines 
+    \t a monotonically  increasing array of bin edges, including 
+    \t the rightmost edge, allowing for non-uniform bin widths. 
     \t Frequency in each bin is defined as bins[i] <= x < bins[i+1]
     \t Note: missing or np.nan will be binned separately
     
     missing : float, optional, default: 0.05 (5%)
-    \t if percent distribution is missing, default value is used when
-    \t calculate Population Stability Index (PSI)
+    \t if percent distribution is missing, default value is used
+    \t when calculate Population Stability Index (PSI)
     
-    Return
-    ------
-    
+    Returns
+    -------
     dictionary of (*.json)
     (1) "columns" : shape of (5,)
     (2) "data" : shape of ('missing' + n_bin, 5)
     (3) "psi" : float (Population Stability Index, PSI)
     (4) "crit_val" : float (critical value for Chi-Square)
     (5) "p_value" : float (cdf given critical value)
+    
+    Example
+    -------
+    >>> from scorecard.monitoring import *
+    >>> import np as numpy, pandas as pd
+    
+    >>> a = np.random.randint(0,5,100)
+    >>> b = np.random.randint(0,5, 50)
+    >>> inf = float('Inf')
+    >>> bins = [-inf, 1, 2, 3, 4, inf]
+    >>> c = stability_index(a, b, bins=bins)
+    >>> c
+    {'columns' : ['lower', 'upper', 'p_actual', 'p_expect', 'n_psi'],
+     'data'    : [[ nan, nan, 0.05, 0.05, 0.0  ],
+                  [-inf, 1.0, 0.22, 0.18, 0.008],
+                  [ 1.0, 2.0, 0.19, 0.22, 0.004],
+                  [ 2.0, 3.0, 0.21, 0.14, 0.028],
+                  [ 3.0, 4.0, 0.21, 0.26, 0.011],
+                  [ 4.0, inf, 0.17, 0.2 , 0.005]],
+     'psi'     : 0.05636,
+     'crit_val': 0.06210,
+     'p_value' : 0.80321}
     
     ** Note **
     In order to view nested dictionaries, use the following code
