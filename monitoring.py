@@ -1,9 +1,10 @@
 '''
-Instance:
+Method
+------
 (1) system_stability
 (2) stability_index
 (3) m_json
-(4) prepare_xy
+(4) xy_series
 '''
 import numpy as np, json, sys
 from scipy.stats import chi2
@@ -13,14 +14,15 @@ def system_stability(X1, X2, bins, missing=0.05):
     '''
     ** System Stability Analysis **
     
-    This analysis only indicates whether a shift has occured, and
-    give an indication of the magnitude. The methods used in this 
-    analysis are Population Stability Index (PSI) and Chi-Square.
+    This analysis indicates whether a distribution shift has 
+    occured, as well as provide magnitude of the shift. 
+    The methods used in this analysis are Population Stability 
+    Index (PSI) and Chi-Square.
     
     Note: 
     (1) missing is binned separately
-    (2) variables are from those that exist in "X1", "X2", 
-        and "bins"
+    (2) only variables that exist in "X1", "X2", and "bins"
+        are selected
     (3) size of X1 can be different from X2
     
     Parameters
@@ -41,8 +43,9 @@ def system_stability(X1, X2, bins, missing=0.05):
     
     Returns
     -------
-    dictionary of results derived from stability_index (method).
-    Indices are arranged in accordance with items in X2-list.
+    dictionary of results derived from stability_index (method)
+    and chi-square. Indices are arranged in accordance with items 
+    in X2-list.
     
     Example
     -------
@@ -55,11 +58,11 @@ def system_stability(X1, X2, bins, missing=0.05):
     {'A': array([0, 1, 2, 3, 4, 5]), 
      'B': array([0, 1, 2, 3, 4, 5])}
     >>> system_stability(X1, X2, bins)
-    {'_feature_': ['B', 'A'],
+    {'_feature_': ['A', 'B'],
      'A' : {'columns': ['lower','upper','p_actual','p_expect','n_psi'],
      'data': [(n_bins, 5)], 'psi' : float, 
      'crit_val': float, 'p_value' : float},
-     'B' : …}
+     'B' : ... }
   
     Note
     ----
@@ -78,12 +81,13 @@ def system_stability(X1, X2, bins, missing=0.05):
         ssa[n] = a
     if len(X2)==1: return ssa[0]
     else: return ssa
-    
+
 def stability_index(x1, x2, bins=10, missing=0.05):
     
     '''
     This function only takes binary classification i.e. 0 and 1,
     where 0 indicates non-event whereas 1 indicates event (target).
+    The methods used are the followings:
     
     (1) Population Stability Index (PSI)
     
@@ -149,7 +153,6 @@ def stability_index(x1, x2, bins=10, missing=0.05):
     -------
     >>> from scorecard.monitoring import *
     >>> import np as numpy, pandas as pd
-    
     >>> a = np.random.randint(0,5,100)
     >>> b = np.random.randint(0,5, 50)
     >>> inf = float('Inf')
@@ -213,9 +216,9 @@ def m_json(file, data=None, mode='r', indent=None, encoding='utf-8'):
     \t data is required only when mode is 'w'. 
     
     mode : str, optional, default: 'r' 
-    \t mode while opening a file. If not provided, it defaults  
-    \t to 'r'. Available file modes are 'r' (read), and 'w' 
-    \t (write)
+    \t mode while opening a file. If not provided, it 
+    \t defaults to 'r'. Available file modes are 'r' (read), 
+    \t and 'w' (write)
     
     indent : int, optional, (default:None)
     \t indent is applied when mode is 'w'
@@ -251,19 +254,23 @@ def m_json(file, data=None, mode='r', indent=None, encoding='utf-8'):
                 return json.load(f)
         except: print("Unexpected error: {0}".format(sys.exc_info()[0]))
 
-def prepare_xy(a, dict_keys=None, features=None, metrics=['p_value','psi']):
+def xy_series(a, dict_keys=None, features=None, metrics=['p_value','psi']):
   
     '''
     Given variable(s) and metric(s), this function 
     collects data from all keys for plotting purpose.
+    It is design to facilitate constructing time-series
+    data.
     
     Parameters
     ----------
     a : JSON file
-    \t JSON file must have key for all system_stability 
-    \t inputs e.g. {'2010': system_stability as of 2010
-    \t              '2011': system_stability as of 2011
-    \t              '20XX': system_stability as of 20XX}
+    \t "a" must have key for all nested dictionary,
+    \t whose format is in the same format as 
+    \t "system_stability" output (see __doc__)  
+    \t e.g. {'2010': nested dictionary as of 2010
+    \t       '2011': nested dictionary as of 2011
+    \t       '20XX': nested dictionary as of 20XX}
     \t Note: key must be numeric
 
     dict_keys : list or dict_keys, optional, (default:None)
