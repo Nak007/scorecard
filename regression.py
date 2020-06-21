@@ -678,20 +678,19 @@ class evaluate_classifier:
     def ks_chart(self, axis, y_true, y_proba):
 
         '''
-        Kolmogorov–Smirnov
-        
-        In statistics, the Kolmogorov–Smirnov test is a nonparametric test of 
-        the equality of continuous, one-dimensional probability distributions 
-        that can be used to compare a sample with a reference probability 
-        distribution (one-sample K–S test), or to compare two samples.
+        ** Kolmogorov–Smirnov **
+        In statistics, the Kolmogorov–Smirnov test is a nonparametric 
+        test of the equality of continuous, one-dimensional probability 
+        distributions that can be used to compare a sample with a 
+        reference probability distribution (one-sample K–S test), or to 
+        compare two samples.
         
         Reference: https://en.wikipedia.org/wiki/Kolmogorov–Smirnov_test
         
         Parameters
         ----------
-        
         axis : matplotlib axis object
-        \t base class for axis in matplotlib
+        \t Base class for `ax` in matplotlib
         
         y_true : array-like of shape (n_sample,)
         \t target array (binary)
@@ -701,7 +700,8 @@ class evaluate_classifier:
         '''
         event = y_proba[y_true==1]*100
         nonevent = y_proba[y_true==0]*100
-        bins = [0] + np.unique(y_proba*100).tolist() + [100]
+        max_prob = min(max(y_proba)*100+0.01,100)
+        bins = [0] + np.unique(y_proba*100).tolist() + [max_prob]
 
         # cumulative % distribution
         n_pos, _ = np.histogram(event, bins=bins)
