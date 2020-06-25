@@ -44,7 +44,7 @@ def odd_scaling(y_proba, pdo=50, odds=1.0, point=200, decimal=0):
     '''
     p = np.array(y_proba).reshape(-1,1)
     log_odds = np.log(p/(1-p))
-    factor = pdo/np.log(pdo)
+    factor = pdo/np.log(2)
     offset = point - (factor*np.log(odds))
     return np.round_((offset + factor*log_odds).reshape(1,-1)[0],decimal)
 
